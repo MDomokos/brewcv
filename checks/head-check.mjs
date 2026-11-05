@@ -3,9 +3,9 @@
 // The place tabs (Library, Editor, Career), the name card (the name and the menu: no Fit, no Saved), the name window and the seam (Saved, undo and redo; the page bars are Export's, with Fit), at 1280×720, 1470×832 and 1920×1080, in all ten interface languages, in Tea light and
 // Coffee dark, with three names: 'Example Instruments — Mechanical Design Engineer', one of 60 characters and one unbroken word of 40.
 //   - no control is covered by another or overlaps one (the control at the centre of each is itself), and no label runs out of its control,
-//   - the name is never cut: no ellipsis style on it, its box wide enough for it (scrollWidth <= clientWidth), at most three lines; on a window 850px high or less the card is one line and the role may end in an ellipsis,
+//   - the name is never cut: no ellipsis style on it (the custom word's pill may end in one), its box wide enough for it (scrollWidth <= clientWidth), at most four lines,
 //   - the place tabs: three buttons with a name, one of them aria-current, the Editor's with its pencil, shorter on a window 850px high or less, nothing cut or overlapping,
-//   - the name window (the name card grown over the editor card) shows all its items without scrolling at 1280×720 and the page does not move,
+//   - the name window (rolled down from the name card) shows its top layer without scrolling at 1280×720 (the other resumes scroll in the lower layer) and the page does not move,
 //   - the page bars, at the top of Export beside Fit: one thin vertical bar for each page (1, 2 and 3 pages; under, in the band, over; a 4th page is a "+1"), no text in a bar, its page, fill and state in its name.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing.
 
@@ -40,17 +40,18 @@ const NAMES = { long: 'Example Instruments — Mechanical Design Engineer', sixt
 const PROBE = `(() => {
   const vis = el => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
   const label = el => (el.getAttribute('aria-label') || el.textContent || el.id || el.className || el.tagName).toString().trim().replace(/\\s+/g, ' ').slice(0, 28);
-  const textRects = el => { const out = [], w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); for (let n; (n = w.nextNode());){ if (!n.nodeValue.trim() || n.parentElement.closest('.sr, .wtab:not(.is-on) .ww')) continue; const g = document.createRange(); g.selectNodeContents(n); out.push(...g.getClientRects()); } return out; };
+  const textRects = el => { const out = [], w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); for (let n; (n = w.nextNode());){ if (!n.nodeValue.trim() || n.parentElement.closest('.sr, .wtab:not(.is-on) .ww, .nw-flex > i')) continue; const g = document.createRange(); g.selectNodeContents(n); out.push(...g.getClientRects()); } return out; };
   const out = { covered: [], overlap: [], clipped: [], name: {}, items: 0 };
   const scope = ['#rail', '#ptabs', '#head', '#switcher'].map(s => document.querySelector(s)).filter(e => e && vis(e));
-  const controls = [...document.querySelectorAll('#rail button, #ptabs button, #head button, #head [tabindex], #switcher button, #switcher input, #switcher select')].filter(vis);
+  const low = document.querySelector('#switcher .nw-low')?.getBoundingClientRect();      // the lower layer scrolls by design: what it has scrolled out of sight is not on the screen
+  const clipped = el => { if (!low || !el.closest('.nw-low')) return false; const r = el.getBoundingClientRect(); return r.top < low.top - 0.5 || r.bottom > low.bottom + 0.5; };
+  const controls = [...document.querySelectorAll('#rail button, #ptabs button, #head button, #head [tabindex], #switcher button, #switcher input, #switcher select')].filter(vis).filter(e => !clipped(e));
   out.items = controls.length;
   for (const el of controls){
     const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     if (cx < 0 || cy < 0 || cx > innerWidth || cy > innerHeight) continue;
     const top = document.elementFromPoint(cx, cy);
     if (!(top === el || el.contains(top) || (top && top.contains(el) && !top.matches('#col, #rail, #ptabs, #head, #switcher, body, html')))) out.covered.push(label(el) + ' under ' + (top ? top.tagName.toLowerCase() + (top.id ? '#' + top.id : '.' + String(top.className).split(' ')[0]) : 'nothing'));
-    if (el.matches('#docname-btn') && matchMedia('(max-height: 850px)').matches) continue;      // compact: the name is one line and ends in an ellipsis
     for (const t of textRects(el)) if (t.right > r.right + 1 || t.left < r.left - 1 || t.bottom > r.bottom + 1 || t.top < r.top - 1){ out.clipped.push(label(el) + ' runs out of its box'); break; }
   }
   for (let i = 0; i < controls.length; i++) for (let j = i + 1; j < controls.length; j++){
@@ -65,12 +66,13 @@ const PROBE = `(() => {
   const dn = document.querySelector('#docname'), btn = document.querySelector('#docname-btn');
   if (dn){
     const lines = new Set(textRects(dn).map(r => Math.round(r.top)));
-    const ell = [dn, btn, ...dn.querySelectorAll('*')].filter(e => getComputedStyle(e).textOverflow === 'ellipsis').length;
+    const ell = [dn, btn, ...dn.querySelectorAll('*')].filter(e => getComputedStyle(e).textOverflow === 'ellipsis' && !e.matches('.nw-flex > i')).length;      // the custom word's pill may end in one
     out.name = { compact: matchMedia('(max-height: 850px)').matches, cut: dn.scrollWidth > dn.clientWidth + 1 || btn.scrollWidth > btn.clientWidth + 1, ellipsis: ell, lines: lines.size, tall: dn.scrollHeight > dn.clientHeight + 1, headFit: dn.getBoundingClientRect().right <= document.querySelector('#head').getBoundingClientRect().right + 0.5, inside: textRects(dn).every(t => t.right <= btn.getBoundingClientRect().right + 0.5 && t.left >= btn.getBoundingClientRect().left - 0.5) };
   }
   const sw = document.querySelector('#switcher');
   const list = sw?.querySelector('.swlist');
-  out.window = sw && vis(sw) ? { scroll: Math.max(sw.scrollHeight - sw.clientHeight, list ? list.scrollHeight - list.clientHeight : 0), spare: sw.clientHeight - [...sw.children].reduce((n, c) => n + c.getBoundingClientRect().height + 6, 0) } : null;
+  const top = sw?.querySelector('.nw-top');      // the top layer never scrolls; the lower layer (the other resumes) scrolls by itself
+  out.window = sw && vis(sw) ? { scroll: top ? Math.max(0, top.getBoundingClientRect().bottom - sw.getBoundingClientRect().bottom) : Math.max(sw.scrollHeight - sw.clientHeight, list ? list.scrollHeight - list.clientHeight : 0), spare: sw.clientHeight - [...sw.children].reduce((n, c) => n + c.getBoundingClientRect().height + 6, 0) } : null;
   // Fit and Saved have left the name card: Saved is the seam's, Fit is Export's
   if (document.querySelector('#head [data-act=fit], #head .savestate, #head .fitslot')) out.clipped.push('Fit or Saved is still in the name card');
   if (!document.querySelector('#rail .rhist .savestate') || !document.querySelector('#rail [data-act=menu]') || document.querySelector('#head [data-act=menu]')) out.clipped.push('no Saved or no "?" in the bar, or a menu still in the name card');
@@ -111,9 +113,8 @@ for (const [drink, theme] of LOOKS){
           const a = await page.evaluate(PROBE);
           names[key] = a.name;
           for (const k of ['covered', 'overlap', 'clipped']) bad.closed.push(...a[k].map(x => `${key}: ${x}`));
-          if (a.name.compact){ if (a.name.lines !== 1 || !a.name.headFit) bad.closed.push(`${key}: the compact name card is not one line (${JSON.stringify(a.name)})`); }
-          else if (a.name.cut || a.name.ellipsis || !a.name.inside || a.name.tall) bad.closed.push(`${key}: the name is cut (${JSON.stringify(a.name)})`);
-          if (a.name.lines > 3) bad.closed.push(`${key}: the name takes ${a.name.lines} lines`);
+          if (a.name.cut || a.name.ellipsis || !a.name.inside || a.name.tall) bad.closed.push(`${key}: the name is cut (${JSON.stringify(a.name)})`);
+          if (a.name.lines > 4) bad.closed.push(`${key}: the name takes ${a.name.lines} lines`);      // the position, then the workplace and the custom word
           if (a.tabs.names.join() !== want || a.tabs.current !== 1 || !a.tabs.svg.every(Boolean) || a.tabs.cut) bad.closed.push(`${key}: the place tabs (${JSON.stringify(a.tabs)})`);
           tabH.push(...a.tabs.h);
           await page.click('#docname-btn'); await settle(page);
@@ -121,7 +122,7 @@ for (const [drink, theme] of LOOKS){
           for (const k of ['covered', 'overlap', 'clipped']) bad.opened.push(...o[k].map(x => `${key}: ${x}`));
           if (!o.window) bad.opened.push(`${key}: the window is not there`);
           else if (o.window.scroll > 1) bad.opened.push(`${key}: the window scrolls by ${o.window.scroll}px`);
-          if (!o.name.compact && (o.name.cut || o.name.ellipsis)) bad.opened.push(`${key}: the name is cut in the window`);
+          if (o.name.cut || o.name.ellipsis) bad.opened.push(`${key}: the name is cut in the window`);
           const xs = await pageX(page);
           if (xs[0] !== x0[0] || xs[1] !== x0[1]) bad.opened.push(`${key}: the page moved ${x0} → ${xs}`);
           await page.keyboard.press('Escape'); await settle(page);
@@ -176,11 +177,11 @@ for (const [drink, theme] of LOOKS){
   await page.waitForTimeout(500);
   const shown = () => page.evaluate(() => { const e = document.querySelector('#switcher'); return !!e && !e.hidden; });
   await page.click('#docname-btn'); await settle(page);
-  // the language select is a button that opens the app's own list (dropdown.js): ↓ opens it (the name window's own arrow-key walk must not take the key), Esc closes it and the focus is on the button
-  await page.focus('.ddbtn[data-ddf=sw-lang]'); await page.keyboard.press('ArrowDown'); await settle(page);
-  ok('ArrowDown on the language button opens its list and the focus goes into it', await page.evaluate(() => !!document.querySelector('.ddpop') && document.activeElement?.classList.contains('ddopt')));
+  // the card's language code opens a list of the resume's languages: ↓ opens it and the focus goes in, Esc closes it and the focus is back on the code
+  await page.focus('#head .nw-code'); await page.keyboard.press('ArrowDown'); await settle(page);
+  ok('ArrowDown on the card\'s language code opens its list and the focus goes into it', await page.evaluate(() => !!document.querySelector('.nw-lpop') && !!document.activeElement?.closest('.nw-lpop')));
   await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc closes the list, the focus is back on the language button, and the name window is still open', await page.evaluate(() => !document.querySelector('.ddpop') && document.activeElement?.dataset?.ddf === 'sw-lang') && await shown());
+  ok('Esc closes the list, the focus is back on the code, and the name window is still open', await page.evaluate(() => !document.querySelector('.nw-lpop') && document.activeElement?.classList.contains('nw-code')) && await shown());
   await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
   ok('a click on a line of the page closes the name window', !(await shown()));
   await ctx.close();

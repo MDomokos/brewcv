@@ -214,7 +214,7 @@ if (want('del')){
       const has = () => page.evaluate(id => (window.__wb.store.state.resumes ?? []).some(r => r.id === id), rid);
       await nameWin(page); await page.click('#switcher [data-act=rm-delete]'); await page.waitForTimeout(250);
       const wq = await page.evaluate(() => { const a = document.querySelector('#switcher .delask'); return a ? { text: a.textContent, b: [...a.querySelectorAll('button')].map(x => x.dataset.act) } : null; });
-      ok('the open resume with a sent copy asks first under the name window\'s Delete: Cancel, then Delete', !!wq && /sent cop/.test(wq.text) && wq.b.join() === 'rm-ask-no,rm-delete' && await has(), JSON.stringify(wq));
+      ok('the open resume with a sent copy asks first under the name window\'s Delete: the question holds only Cancel, and the same Delete (aria-labelled, solid) confirms', !!wq && /sent cop/.test(wq.text) && /Ctrl\+Z/.test(wq.text) && wq.b.join() === 'rm-ask-no' && await page.$('#switcher .swacts [data-act=rm-delete][data-sure]') && await has(), JSON.stringify(wq));
       await page.click('#switcher .delask [data-act=rm-ask-no]'); await page.waitForTimeout(250);
       ok('…Cancel keeps it', !(await page.$('#switcher .delask')) && await has());
       await page.click('#switcher .swrow.is-cur .smore'); await page.waitForTimeout(200); await page.click('.rowmenu [data-act=rm-delete]'); await page.waitForTimeout(250);
@@ -293,13 +293,13 @@ if (want('name')){
     });
     const tag = `${drink} ${theme}`;
     const c0 = await card();
-    ok(`${tag}: the name is one large button from the card's left edge under the tag line, no ⋯ in the card, and Export a filled button inset 7 px at the card's right end`, c0.left <= 1.5 && c0.underTag && c0.noMenu && c0.stub.split(',').every(v => Math.abs(v - 7) <= 2) && c0.fill, JSON.stringify(c0));
+    ok(`${tag}: the name is one large button inset 7 px from the card's edge under the tag line, no ⋯ in the card, and Export a filled button inset 7 px at the card's right end`, Math.abs(c0.left - 8) <= 1.5 && c0.underTag && c0.noMenu && c0.stub.split(',').every(v => Math.abs(v - 7) <= 2) && c0.fill, JSON.stringify(c0));
     await page.hover('#docname-btn'); await page.waitForTimeout(150); const c1 = await card();
     await page.hover('#head .hstub'); await page.waitForTimeout(150); const c2 = await card();
     await page.click('#docname-btn'); await page.waitForTimeout(300); await page.mouse.move(4, 4); const c3 = await card();
     ok(`${tag}: neither the name nor Export has a shadow, at rest, on hover or with the window open`, [c0, c1, c2, c3].every(c => c.sh.every(x => x === 'none')), JSON.stringify([c0.sh, c1.sh, c2.sh, c3.sh]));
-    const w = await win(page);
-    ok(`${tag}: the name window: "This resume" holds Duplicate then Delete, no Record, + New resume first in the list, Manage all full width with an arrow`, w.acts === 'rm-dup,rm-delete' && !!w.lbl && !w.record && w.first === 'sw-new' && w.manage, JSON.stringify(w));
+    const w = await page.evaluate(() => { const s = document.querySelector('#switcher'); return { acts: [...s.querySelectorAll('.nw-this .swacts > button')].map(b => b.dataset.act).join(), record: !!s.querySelector('[data-act=sw-record]'), gone: !!s.querySelector('.swnew, .swmanage'), langs: s.querySelectorAll('.nw-stat li').length, search: !!s.querySelector('.nw-low #sw-q') }; });
+    ok(`${tag}: the name window: Duplicate, Close resume, then Delete; no Record, no New resume or Manage all; the languages above, the search in the lower layer`, w.acts === 'rm-dup,sw-close,rm-delete' && !w.record && !w.gone && w.langs >= 1 && w.search, JSON.stringify(w));
     await page.keyboard.press('Escape'); await page.waitForTimeout(200);
     await page.click('#rail [data-act=menu]'); await page.waitForTimeout(200);
     const mn = await page.evaluate(() => { const m = document.querySelector('#rail .appmenu'), r = m.getBoundingClientRect(), rows = [...m.querySelectorAll(':scope > button, :scope > a')];

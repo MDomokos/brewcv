@@ -234,10 +234,11 @@ if (want('depth')){
     await rest(page); await STATES.section(page); await page.waitForTimeout(300);
     const d = await page.evaluate(depth);
     ok(`${drink} ${theme}: the --elev tokens are set; in the way the open tab is wider and named, its words 4.5:1, every drawing 3:1 on its ground; the open sheet joins the name card; a field is sunk`, !d.bad.length, d.bad.join(' | '));
-    await page.click('#docname-btn'); await page.waitForTimeout(400);
-    const nc = await page.evaluate(() => ({ btn: getComputedStyle(document.querySelector('#docname-btn')).boxShadow, fill: getComputedStyle(document.querySelector('#docname-btn')).backgroundColor, win: getComputedStyle(document.querySelector('#switcher')).boxShadow, pop: getComputedStyle(document.documentElement).getPropertyValue('--elev-pop').trim() }));
-    // no shadow on the name card's button, not even sunk: it reads open by its fill
-    ok(`${drink} ${theme}: the name card's button is filled, with no shadow, while its window is open, the window a popover (--elev-pop)`, nc.btn === 'none' && !/rgba\(0, 0, 0, 0\)/.test(nc.fill) && nc.win !== 'none' && !!nc.pop, JSON.stringify(nc));
+    const lift = await page.evaluate(() => getComputedStyle(document.querySelector('#head')).boxShadow);
+    await page.click('#docname-btn'); await page.waitForTimeout(600);
+    const nc = await page.evaluate(() => ({ btn: getComputedStyle(document.querySelector('#docname-btn')).boxShadow, fill: getComputedStyle(document.querySelector('#docname-btn')).backgroundColor, win: getComputedStyle(document.querySelector('#switcher')).boxShadow, card: getComputedStyle(document.querySelector('#head')).boxShadow }));
+    // no shadow on the name card's button, not even sunk: it reads open by its fill; the window carries the card's own lift, and the card none of its own
+    ok(`${drink} ${theme}: the name card's button is filled, with no shadow, while its window is open; the window carries the card's lift`, nc.btn === 'none' && !/rgba\(0, 0, 0, 0\)/.test(nc.fill) && nc.win === lift && nc.card === 'none', JSON.stringify({ ...nc, lift }));
     await page.keyboard.press('Escape');
     ok(`${drink} ${theme}: depth: no page errors`, !bad.length, bad.slice(0, 2).join(' | '));
     await ctx.close();
@@ -553,7 +554,7 @@ async function tiers(){
   const own = e => { const k = OWN.split(',').map(x => x.trim()).filter(Boolean).find(s => e.matches(s)); return k ? `own ${k}` : null; };
   const out = {}, bad = [];
   for (const e of document.querySelectorAll('#col :is(button, a[data-act], [role=button], [role=option], input, select, textarea), #switcher :is(button, input, select)')){
-    const r = e.getBoundingClientRect(); if (!r.width || e.closest('[hidden]')) continue;
+    const r = e.getBoundingClientRect(); if (!r.width || e.closest('[hidden]') || getComputedStyle(e).visibility === 'hidden') continue;      // (the name window hides what it covers)
     const t = e.classList.contains('press') ? e.dataset.tier : e.matches('input, select, textarea, a') ? e.tagName.toLowerCase() : own(e);
     if (!t) bad.push(`unclassified: ${e.tagName.toLowerCase()}.${[...e.classList].join('.')} ${name(e)}`);
     out[`${name(e)} ${e.tagName.toLowerCase()}${e.type && e.matches('input') ? ':' + e.type : ''}`] = `${t ?? '?'} / ${layer(e)}`;

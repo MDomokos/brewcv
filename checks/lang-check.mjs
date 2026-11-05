@@ -135,6 +135,24 @@ section('an older file: whole pick sets in byLang');
   ok('a malformed inLine is dropped on load', (() => { const x = clone(en); x.inLine = { summary: 3, tagline: '1' }; const g = S.loadResume(S.saveResume(model, x).file, model); return eq(g.recipe.inLine, { tagline: '1' }) && g.warnings.some(w => /inLine/.test(w)); })());
 }
 
+section('the languages of one resume: added, taken off, a paper each');
+{
+  const r = clone(en); r.format = 'a4';
+  ok('a resume starts in its own language only', eq(L.resumeLangs(r), ['en']));
+  ok('adding a language is an empty entry; adding it again does nothing', L.addResumeLang(r, 'de') && eq(r.byLang.de, {}) && !L.addResumeLang(r, 'de') && !L.addResumeLang(r, 'en') && eq(L.resumeLangs(r), ['en', 'de']));
+  ok('…and it stays in the career while the resume has it', L.langUse({ record: model, cur: r, resumes: [] }, 'de') === 'ux6c.langUsedResume');
+  L.setLangPaper(r, 'de', true);
+  ok('a paper for another language is kept with it; the current one\'s is the format', r.byLang.de.format === 'us-letter' && r.format === 'a4' && L.langPaper(r, 'de') === 'us-letter' && L.langPaper(r, 'en') === 'a4');
+  ok('Hungarian with no paper of its own takes the Hungarian A4', L.langPaper(r, 'hu') === 'a4-hu');
+  L.switchLang(r, 'de', model);
+  ok('switching restores the language\'s paper and keeps the one it left', r.format === 'us-letter' && r.byLang.en.format === 'a4');
+  L.switchLang(r, 'en', model);
+  ok('…and back', r.format === 'a4' && r.byLang.de.format === 'us-letter');
+  ok('the current language cannot be taken off', !L.dropResumeLang(r, 'en') && eq(L.resumeLangs(r), ['en', 'de']));
+  ok('taking a language off drops its entry: its choices, texts, holds and paper', L.dropResumeLang(r, 'de') && !r.byLang && eq(L.resumeLangs(r), ['en']));
+  ok('it saves and loads with no warning', (() => { const x = clone(en); L.addResumeLang(x, 'fr'); L.setLangPaper(x, 'fr', true); const g = S.loadResume(S.saveResume(model, x).file, model); return g.warnings.length === 0 && eq(g.recipe.byLang, { fr: { format: 'us-letter' } }) && validate(S.save(model), g.recipe).errors.length === 0; })());
+}
+
 section('ten languages');
 {
   const model = stripLangs(clone(S.load(read('data/example.json')).model));

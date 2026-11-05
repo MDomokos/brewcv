@@ -406,6 +406,7 @@ await run('Delete beside Duplicate in the name window', async () => {
   const s1 = await state();
   if (!(await page.$('#switcher:not([hidden]) [data-act=rm-delete]'))){ await page.click('#docname-btn'); await wait(); }      // Duplicate leaves the name window open, the name ready to type over
   await page.click('#switcher [data-act=rm-delete]'); await wait();
+  await page.click('#switcher [data-act=rm-delete]'); await wait();      // Delete always asks first: the same button confirms
   const s2 = await state();
   ok('Delete in the name window deletes the open resume (the copy) and opens another, with the Undo button on the toast', s1.n === s0.n + 1 && s2.n === s0.n && s2.open !== s1.open && !!(await page.$('#toast.on [data-act=toast-undo]')), JSON.stringify([s0, s1, s2]));
   await page.click('#toast [data-act=toast-undo]'); await wait();
@@ -422,8 +423,7 @@ await run('delete a sent copy from its own view', async () => {
   // a sent copy: Mark as sent, then delete it from its own view, and Undo
   await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); window.__wb.store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Acme', role: 'Engineer', date: '2026-01-02' }); }, 'check: mark as sent'); }); await wait();
   ok('(a sent copy exists)', (await state()).snaps === 1);
-  await page.click('#docname-btn'); await wait();
-  await page.click('#switcher [data-act=sw-manage]'); await wait();
+  await page.click('#ptabs [data-p=library]'); await wait();      // the Library (the name window has no Manage all)
   await sentLine(page); await wait();
   const btns = await page.$$eval('.snapacts button', bs => bs.map(b => b.dataset.act));
   ok('a sent copy\u2019s view has "Delete this sent copy" beside Restore and Duplicate (and still no way to edit it)', btns.join() === 'goto,snap-restore,snap-dup,snap-delete', btns.join());
@@ -433,8 +433,7 @@ await run('delete a sent copy from its own view', async () => {
   ok('…Undo brings the sent copy back', (await state()).snaps === 1);
   // Restore as current has the Undo button too
   await page.evaluate(() => window.__wb.store.commit(d => { d.cur.pageLimit = 3; }, 'check: page limit')); await wait();
-  await page.click('#docname-btn'); await wait();
-  await page.click('#switcher [data-act=sw-manage]'); await wait();
+  await page.click('#ptabs [data-p=library]'); await wait();      // the Library (the name window has no Manage all)
   await sentLine(page); await wait();
   await page.click('[data-act=snap-restore]'); await wait();
   const lim = () => page.evaluate(() => window.__wb.store.state.cur.pageLimit ?? 1);
@@ -455,10 +454,9 @@ await run('deleting a locked resume or a sent copy asks first', async () => {
   await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); window.__wb.store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Acme', role: 'Engineer', date: '2026-01-02' }); d.cur.locked = ['hydra-inhaler']; }, 'check: sent and locked'); }); await wait();
   const n0 = (await state()).n;
   // the open resume has a sent copy, so its Delete asks in place first; then the lock's question
-  const delOpen = async () => { await page.click('#switcher [data-act=rm-delete]'); await wait(); if (await page.$('#switcher .delask')){ await page.click('#switcher .delask [data-act=rm-delete]'); await wait(); } };
+  const delOpen = async () => { await page.click('#switcher [data-act=rm-delete]'); await wait(); if (await page.$('#switcher .delask')){ await page.click('#switcher [data-act=rm-delete]'); await wait(); } };
   // the sent copy
-  await page.click('#docname-btn'); await wait();
-  await page.click('#switcher [data-act=sw-manage]'); await wait();
+  await page.click('#ptabs [data-p=library]'); await wait();      // the Library (the name window has no Manage all)
   await sentLine(page); await wait();
   await page.click('[data-act=snap-delete]'); await wait();
   ok('a locked resume’s sent copy asks before it is deleted, naming the locked content', asked.length === 1 && /locked content/.test(asked[0]), asked.join('|'));
@@ -501,20 +499,20 @@ await run('remove a language from the record when nothing uses it', async () => 
     d.resumes = d.resumes.filter(r => r.lang !== 'cs');
   }, 'check: no Czech'));
   const l0 = await langs();
-  const choose = async v => { await page.click('#docname-btn'); await wait(); await pickOption(page, '#sw-lang', v); await wait(); };
-  await choose('+cs');
+  // the name window adds a language to the resume (and to the list) and switches by its rows; taking one off the career is the model's here
+  const win = async () => { if (!(await page.$('#switcher:not([hidden])'))){ await page.click('#docname-btn'); await wait(); } };
+  const why = () => page.evaluate(async () => { const L = await import('/src/model/lang.js'); return L.removableLangs(window.__wb.store.state).find(x => x.lang === 'cs')?.why ?? null; });
+  await win(); await page.click('#switcher [data-act=nw-addl]'); await page.click('#switcher [data-act=nw-tog][data-l=cs]'); await wait();
+  await page.click('#switcher .nw-ln[data-l=cs]'); await wait();
   ok('(adding Czech puts it in the list and the resume in Czech)', (await langs()) === `${l0},cs` && (await page.evaluate(() => window.__wb.store.state.cur.lang)) === 'cs');
-  await page.click('#docname-btn'); await wait();
-  const used = await page.$$eval('#sw-lang optgroup[label="Remove a language"] option', os => os.map(o => ({ v: o.value, dis: o.disabled, t: o.textContent })));
-  ok('while the resume is in it, Czech is listed under "Remove a language" but held, with the reason', used.some(o => o.v === '-cs' && o.dis && /a resume is in it/.test(o.t)), JSON.stringify(used));
-  await pickOption(page, '#sw-lang', 'en'); await wait();
-  await page.click('#docname-btn'); await wait();
-  const free = await page.$$eval('#sw-lang optgroup[label="Remove a language"] option', os => os.map(o => ({ v: o.value, dis: o.disabled })));
-  ok('once no resume uses it, Czech can be removed (a language with versions stays held)', free.some(o => o.v === '-cs' && !o.dis) && free.filter(o => o.v !== '-cs').every(o => o.dis), JSON.stringify(free));
-  await pickOption(page, '#sw-lang', '-cs'); await wait();
-  ok('removing it takes it out of the list, with the Undo button on the toast', (await langs()) === l0 && !!(await page.$('#toast.on [data-act=toast-undo]')));
-  await page.click('#toast [data-act=toast-undo]'); await wait();
-  ok('…and Undo puts it back', (await langs()) === `${l0},cs`);
+  ok('while the resume is in it, Czech is held, with the reason', (await why()) === 'ux6c.langUsedResume');
+  await win(); await page.click('#switcher .nw-ln[data-l=en]'); await wait();
+  await win();
+  ok('back in English, the window cannot take English off, and Czech can be', await page.isDisabled('#switcher .nw-x[data-l=en]') && !(await page.isDisabled('#switcher .nw-x[data-l=cs]')));
+  await page.click('#switcher .nw-x[data-l=cs]'); await wait();
+  ok('taking Czech off the resume leaves it a language nothing uses', (await why()) === null && !(await page.$('#switcher .nw-ln[data-l=cs]')));
+  await page.keyboard.press('Control+z'); await wait();
+  ok('…and Undo puts it back on the resume', (await why()) === 'ux6c.langUsedResume');
   const refused = await page.evaluate(async () => { const L = await import('/src/model/lang.js'), s = structuredClone(window.__wb.store.state); try { L.removeLang(s, s.cur.lang ?? 'en'); return 'removed'; } catch (e) { return String(e.key ?? e.message); } });
   ok('the model refuses a language that is in use (here the resume\u2019s own), with the reason', refused !== 'removed', refused);
   await ctx.close();
@@ -555,7 +553,7 @@ await run('Fit is held while a screen is open: the phone’s foot', async () => 
   const f0 = await fit();
   ok('the phone’s foot: Fit is not held on the page', f0.dis === null, JSON.stringify(f0));
   await page.click('#docname-btn'); await wait();
-  await page.click('#switcher [data-act=sw-manage]'); await wait();
+  await page.click('#switcher [data-act=sw-manage]'); await wait();      // a phone's name window keeps Manage all
   const f1 = await fit(), u1 = await undo();
   ok('the phone’s foot: with the Resumes screen open Fit is aria-disabled and says why', f1.dis === 'true' && /go back to the resume/.test(f1.desc), JSON.stringify(f1));
   await page.$eval(sel, b => b.click()); await wait();

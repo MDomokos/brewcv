@@ -5,7 +5,7 @@ import { createStore } from '../store/store.js';
 import { askOk } from './ask.js';
 import { createPersist, idbBackend, memoryBackend, fsaFolder, tauriApi, tauriFolder, folderOf, dataFolder, readFolder, keepOriginals, requestPersistence, SAVE_FILE_NAME } from '../store/persist.js';
 import { createSpace, moveIntoBrewCV } from '../store/space.js';
-import { load, loadResume, LANGS } from '../model/schema.js';
+import { load, loadResume } from '../model/schema.js';
 import { chooseVariant, newResume, pickVersion } from '../model/resume.js';
 import { LockedError } from '../model/lock.js';
 import { groupOf } from '../model/checklist.js';
@@ -33,7 +33,7 @@ import { openActualSize } from './actual.js';
 import { initEdit } from './edit.js';
 import { initWordbank } from './wordbank.js';
 import { initResumes, snapBarText } from './resumes.js';
-import { initSwitcher, nameHtml } from './switcher.js';
+import { initSwitcher, nameHtml, cardName } from './switcher.js';
 import { initScreens } from './screens.js';
 import { initThumbs } from './thumbs.js';
 import { initFiles } from './files.js';
@@ -43,7 +43,7 @@ import { initDesign } from './design.js';
 import { initOnboarding } from './onboarding.js';
 import { initCareer } from './career.js';
 import * as RS from '../model/resumes.js';
-import { switchLang, missingList, langName, langsInUse, addLangInUse, removeLang, removableLangs } from '../model/lang.js';
+import { switchLang, missingList, langName, langsInUse, addLangInUse, removeLang, removableLangs, resumeLangs, addResumeLang } from '../model/lang.js';
 import { langMenuHtml, menuKey, focusMenu } from './langmenu.js';
 import { delBtn } from './parts.js';
 import { t, h, errText, uiLang, docChrome, loadCatalogue, setUiLang, setUiLangNow, UI_LANGS } from '../i18n/index.js';
@@ -655,8 +655,8 @@ function drawHead(){
     const tag = tg.kind === 'ticked' ? `<div class="htag"><span class="htagl is-other">${h('hc.tagTicked', { n: rs.length })}</span></div>` : '';      // the open resume needs no tag
     const name = none ? `<span class="docname is-none"><span class="dn">${h('close.none')}</span></span>`
       : editorHere
-      ? `<button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" aria-controls="switcher" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${nameHtml(resumeName(cur()))}</span><span class="car" aria-hidden="true">${icon('caret', { role: 'inline' })}</span></button>`
-      : !many ? `<button class="docname" ${rs[0]?.id === store.state.openId ? 'data-act="place" data-p="editor"' : `data-act="sw-open" data-id="${esc(rs[0]?.id ?? '')}"`} title="${esc(t('ux6e.open', { name: resumeName(rs[0]) }))}"><span class="dn">${nameHtml(resumeName(rs[0]))}</span></button>`
+      ? `<button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" aria-controls="switcher" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${cardName(cur(), { cue: true, code: !ui.snap })}</span></button>`
+      : !many ? `<button class="docname" ${rs[0]?.id === store.state.openId ? 'data-act="place" data-p="editor"' : `data-act="sw-open" data-id="${esc(rs[0]?.id ?? '')}"`} title="${esc(t('ux6e.open', { name: resumeName(rs[0]) }))}"><span class="dn">${cardName(rs[0], { code: rs[0]?.id === store.state.openId && !ui.snap })}</span></button>`
         : deckHtml(rs, screens.inspected());
     const stub = `<button class="hstub" data-act="export-place" data-tip="${esc(many ? t('hc.exportMany', { n: rs.length }) : t('hc.exportOne', { name: resumeName(rs[0]) }))}|" aria-label="${esc(many ? t('hc.exportMany', { n: rs.length }) : t('hc.exportOne', { name: resumeName(rs[0]) }))}">${icon('fileout', { role: many ? 'control' : 'header' })}<span>${h('ux2.modeExport')}${many ? ` <b class="hn">${rs.length}</b>` : ''}</span></button>`;
     // Career with a resume open: the card's bottom row says whether Career shows its picks (the rest dimmed) or the whole career
@@ -670,7 +670,6 @@ function drawHead(){
     $('#head').innerHTML = `
     <div class="hrow top"><div class="hmain">${tag}${name}</div></div>
     ${none ? `<div class="hrow sentrow"><span class="dnote">${h('close.hint')}</span></div>` : ''}
-    ${editorHere && from ? `<div class="hrow sentrow"><span class="dfrom">${esc(from)}</span></div>` : ''}
     ${editorHere && sent ? `<div class="hrow sentrow"><span class="dsent">${esc(sent)}</span></div>` : ''}
     ${ui.view === 'compare' ? screens.placeCard('compare') : ''}
     ${rs.length ? stub : ''}
@@ -871,10 +870,10 @@ function langButton(r){
     ${open ? langMenuHtml({ for: 'resume', current: L, inUse, more: ui.langMore, label: t('head.langGroup'),
       count: l => (ui.langCounts?.[l] ?? null), removable: removableLangs(store.state) }) : ''}</span>`;
 }
-// how many texts each language lacks, were the open resume in it (English has none, unless the resume is in a group)
-function langCounts(inUse){
+// how many texts each language lacks, were the open resume switched to it (English has none, unless the resume is in a group)
+function langCounts(langs){
   const g = RS.groupOpts(store.state, cur());
-  return Object.fromEntries(inUse.map(l => [l, l === 'en' && !g.inGroup ? 0 : missingList(work(), { ...cur(), lang: l }, g).length]));
+  return Object.fromEntries(langs.map(l => { const c = structuredClone(cur()); switchLang(c, l, work()); return [l, missingList(work(), c, g).length]; }));
 }
 async function openLangMenu(){
   if (ui.langMenu === 'resume'){ ui.langMenu = null; renderHead(); return; }
@@ -908,19 +907,12 @@ function removeLanguage(l){
   renderHead();
 }
 
-// The name window's language: the languages in use (with how many texts each lacks), then the others to add. Chosen from a list, as a
-// phone's button opens a menu.
-const langNote = l => { const n = ui.langCounts?.[l]; return n == null ? '' : ` · ${n ? t('lang.toWrite', { n }) : t('lang.complete')}`; };
-function langSelect(){
-  const L = cur()?.lang ?? 'en', inUse = langsInUse(record()), used = inUse.includes(L) ? inUse : [...inUse, L], others = LANGS.filter(l => !used.includes(l)), gone = removableLangs(store.state);
-  return `<select id="sw-lang" class="sw-q" ${ui.snap ? 'disabled' : ''}>${used.map(l => `<option value="${l}" lang="${l}" ${l === L ? 'selected' : ''}>${esc(langName(l) + langNote(l))}</option>`).join('')}${others.length ? `<optgroup label="${esc(t('lang.add'))}">${others.map(l => `<option value="+${l}" lang="${l}">+ ${esc(langName(l))}</option>`).join('')}</optgroup>` : ''}${gone.length ? `<optgroup label="${esc(t('ux6c.removeLangHead'))}">${gone.map(({ lang: l, why }) => `<option value="-${l}" lang="${l}" ${why ? 'disabled' : ''}>− ${esc(langName(l))}${why ? ` · ${esc(t(why))}` : ''}</option>`).join('')}</optgroup>` : ''}</select>`;
-}
+// The name window's languages: what each of the resume's languages has left to write, once their words are in
 async function loadLangCounts(){
-  const inUse = langsInUse(record());
-  await Promise.all(inUse.map(l => loadCatalogue(l)));
-  ui.langCounts = langCounts(inUse);
-  const sel = $('#sw-lang');
-  if (sel && document.activeElement !== (sel._dd ?? sel)) sel.outerHTML = langSelect();
+  const langs = resumeLangs(cur());
+  await Promise.all(langs.map(l => loadCatalogue(l)));
+  ui.langCounts = { ...ui.langCounts, ...langCounts(langs) };
+  switcher.counts();
 }
 
 // A phone's "?" corner: help and info at the end of its foot (dock.js): the shortcuts, privacy, the source, the version. A desktop has the bar's "?" menu.
@@ -1117,7 +1109,7 @@ const CARD_IN = 24;
 function placeCard(){ placeCardNow(); string?.update(); }      // the string follows the card and the selection
 function placeCardNow(){
   const body = $('#body'), col = $('#col'), head = $('#head');
-  const float = !!body && !ui.layout?.phone && !ui.view && !ui.snap && !side().off && !col.classList.contains('is-name') && !document.body.classList.contains('is-intro') && !document.body.classList.contains('is-quiet') && ['outline', 'edit'].includes(body.dataset.mode);
+  const float = !!body && !ui.layout?.phone && !ui.view && !ui.snap && !side().off && !document.body.classList.contains('is-intro') && !document.body.classList.contains('is-quiet') && ['outline', 'edit'].includes(body.dataset.mode);
   body?.classList.toggle('is-float', float);
   document.body.classList.toggle('card-float', float);
   if (!float){ if (cardY){ cardY = 0; body?.style.removeProperty('--card-y'); } return; }
@@ -1700,8 +1692,9 @@ const resumes = initResumes({
 });
 const switcher = initSwitcher({ store, ui, toast, setView, work, previewRecipe, resumes,
   endPreview: () => endPreview(),
-  langSelect, opened: loadLangCounts,
-  chooseLang: v => { if (v.startsWith('-')) removeLanguage(v.slice(1)); else { const add = v.startsWith('+'); useLanguage(add ? v.slice(1) : v, { add }); } },
+  opened: loadLangCounts,
+  chooseLang: v => { const add = v.startsWith('+'); useLanguage(add ? v.slice(1) : v, { add }); },
+  addLang: (d, l) => { addLangInUse(d.record, l); addResumeLang(d.cur, l); },      // on this resume, and in the career's languages
   choosePaper: v => design.act('d-paper', { dataset: { f: v === 'us-letter' ? 'us-letter' : 'a4' } }),
   relayout: () => syncFull(),
   closeMenus: () => { if (ui.menu || ui.langMenu){ ui.menu = false; ui.langMenu = null; renderHead(); } },

@@ -9,7 +9,7 @@ import { langName, langsInUse, addLangInUse, a4FormatOf } from '../model/lang.js
 import { langMenuHtml, focusMenu } from './langmenu.js';
 import { icon, withArrows } from './icons.js';
 import { askOk } from './ask.js';
-import { delBtn, delAskHtml } from './parts.js';
+import { delBtn, delAskHtml, askInline } from './parts.js';
 
 let C = null;
 export function initResumes(ctx){ C = ctx; initMonthPick({ name: 'resumes', lang: () => uiLang(), change: input => { if (V.send && input.id === 'sv-date') V.send.date = input.value; } }); return api; }
@@ -27,11 +27,11 @@ export function rowMenuHtml(id, where = 'group'){
   if (V.row?.id !== id || V.row.where !== where) return '';
   const r = RS.savedOf(st(), id);
   if (!r) return '';
-  if (V.row.sub === 'del'){      // a resume with sent copies asks first, in the menu: Cancel, Delete
+  if (V.row.sub === 'del'){      // a delete always asks first, in the menu: Cancel, Delete
     return `<div class="pop card rowmenu delask" role="menu" aria-label="${esc(t('ux1.delete'))}" data-menu="row">
-      <p class="small">${esc(askText(r))}</p>
+      ${askInline(askText(r), ' class="small"')}
       <button role="menuitem" data-act="rm-menu" data-id="${esc(id)}" data-where="${esc(where)}">${h('btn.cancel')}</button>
-      ${delBtn(`data-act="rm-delete" data-id="${esc(id)}" data-sure="1"`, t('ux1.delete'), { row: true })}
+      ${delBtn(`data-act="rm-delete" data-id="${esc(id)}" data-sure="1" aria-label="${esc(t('ux6r.delAskAgain'))}"`, t('ux1.delete'), { row: true })}
     </div>`;
   }
   if (V.row.sub === 'lang'){
@@ -48,10 +48,10 @@ export function rowMenuHtml(id, where = 'group'){
     <hr>${delBtn(`data-act="rm-delete" data-id="${esc(id)}"`, t('ux1.delete'), { row: true })}
   </div>`;
 }
-const askText = r => t('ux6r.delResumeAsk', { name: RS.resumeLabel(r), n: RS.snapshotsOf(r).length });
+const askText = r => { const n = RS.snapshotsOf(r).length; return [[t('ux6r.delAskQ'), t('ux6r.delAskStays'), ...(n ? [t('ux6r.delAskSent', { n })] : [])].filter(Boolean), t('ux6r.delAskUndo')]; };
 // The open resume's Delete, in the name window ("This resume"); with sent copies, its question under the buttons once pressed
-export const delHtml = (id, disabled = false) => delBtn(`data-act="rm-delete" data-id="${esc(id ?? '')}" ${disabled ? 'disabled' : ''}`, t('ux1.delete'));
-export const askHtml = id => (V.ask === id && RS.savedOf(st(), id) ? delAskHtml(askText(RS.savedOf(st(), id)), `data-act="rm-delete" data-id="${esc(id)}" data-sure="1"`, t('ux1.delete'), 'data-act="rm-ask-no"') : '');
+export const delHtml = (id, disabled = false) => { const ask = V.ask === id && !disabled; return delBtn(`data-act="rm-delete" data-id="${esc(id ?? '')}" ${ask ? `data-sure="1" aria-label="${esc(t('ux6r.delAskAgain'))}"` : ''} ${disabled ? 'disabled' : ''}`, t('ux1.delete')); };
+export const askHtml = id => (V.ask === id && RS.savedOf(st(), id) ? delAskHtml(askText(RS.savedOf(st(), id)), null, '', 'data-act="rm-ask-no"') : '');
 export const moreButton = (id, where = 'group') => `<button class="smore" data-act="rm-menu" data-id="${esc(id)}" data-where="${where}" aria-haspopup="menu" aria-expanded="${V.row?.id === id && V.row.where === where}" title="${esc(t('ux1.rowMenuTitle'))}" aria-label="${esc(t('ux1.rowMenu', { name: RS.resumeLabel(RS.savedOf(st(), id)) }))}">${icon('more')}</button>`;
 export const renamingHere = (id, where = 'group') => V.renaming?.id === id && V.renaming.where === where;
 export const renameInput = r => `<span class="swrenbox" data-rename="${esc(r.id)}"><input class="swren" data-f="role" value="${esc(r.role ?? '')}" placeholder="${esc(t('resumes.role'))}" aria-label="${esc(t('resumes.role'))}" autocomplete="off"><input class="swren" data-f="company" value="${esc(r.company ?? '')}" placeholder="${esc(r.company ? t('resumes.company') : RS.resumeLabel(r))}" aria-label="${esc(t('resumes.company'))}" autocomplete="off"><input class="swren" data-f="word" value="${esc(RS.wordOf(r))}" placeholder="${esc(t('resumes.word'))}" aria-label="${esc(t('resumes.word'))}" autocomplete="off"></span>`;
@@ -226,13 +226,13 @@ async function sendNow(){
 
 function rerender(){ C.renderHead(); C.renderBody(); C.renderSwitcher(); }
 
-// "Use for a new job": a copy under its parent, named for the company and the role, open in the editor. False when it was not made.
-function newJob(id, company, role){
+// "Use for a new job": a copy under its parent, named for the company and the role (and a custom word), open in the editor. False when it was not made.
+function newJob(id, company, role, word = ''){
   if (!C.leaveOk()) return false;
   let res;
   V.row = null; C.ui.sel = C.NONE; C.setSnap(null);
   const was = RS.savedOf(st(), id)?.round;
-  if (!commit(d => { res = RS.duplicate(d, id, { name: RS.nameFrom({ company, role }), company, role }); }, t('ux1.undoDup'))){ rerender(); return false; }
+  if (!commit(d => { res = RS.duplicate(d, id, { name: RS.nameFrom({ company, role, word }), company, role }); }, t('ux1.undoDup'))){ rerender(); return false; }
   C.noteOpen(res.id); C.setView(null); C.toast(inRound(t('ux6h.created', { name: RS.resumeLabel(st().cur) }), was));
   return true;
 }
@@ -292,10 +292,10 @@ async function act(a, tg){
     case 'rm-ask-no': V.ask = null; rerender(); return true;
     case 'rm-delete': {
       const r = RS.savedOf(st(), tg.dataset.id);
-      // a resume with sent copies takes them with it: two steps (in the row menu, or under the name window's buttons)
-      if (r && RS.snapshotsOf(r).length && !tg.dataset.sure){
+      // always two steps (in the row menu, or under the name window's buttons): the question says what goes
+      if (r && !tg.dataset.sure){
         if (tg.closest('.rowmenu')){ V.row = { ...V.row, sub: 'del' }; rerender(); setTimeout(() => document.querySelector('.rowmenu [data-act=rm-delete]')?.focus(), 0); }
-        else { V.ask = r.id; rerender(); setTimeout(() => document.querySelector('.delask [data-act=rm-delete]')?.focus(), 0); }
+        else { V.ask = r.id; rerender(); setTimeout(() => document.querySelector('.swacts [data-act=rm-delete]')?.focus(), 0); }
         return true;
       }
       V.row = null; V.ask = null;
@@ -439,6 +439,7 @@ export function previewSaved(id){
 
 const api = {
   views: VIEWS, act, bind, newJob, rebuild, markSent, closeResume, newerBanner, open, openSnapshot, rowMenuHtml, moreButton, renameInput, renamingHere, previewSaved, heldRecipe, renameDone, delHtml, askHtml,
+  askOff(){ if (!V.ask) return false; V.ask = null; rerender(); return true; },
   reset(){ V.hover = null; V.menu = null; V.row = null; V.renaming = null; V.nv = null; V.ask = null; },
   closeMenus(){
     if (V.row){ V.row = null; rerender(); return true; }

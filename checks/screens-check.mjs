@@ -242,12 +242,14 @@ await part('Use for a new job: a company is required; Enter makes the copy under
   await page.focus('#nj-role'); await page.keyboard.press('Enter'); await settle(page, 600);
   const s1 = await st(page), r = await page.evaluate(() => { const s = window.__wb.store.state, c = s.resumes.find(x => x.id === s.openId); return { company: c.company, role: c.role, name: c.name, keys: Object.keys(c).sort().join() }; });
   ok('Enter makes the copy under its parent and opens it in the editor, with the company and the role in the fields a resume has', await view(page) === null && s1.ids.length === s0.ids.length + 1 && s1.parents[s1.openId] === parent && r.company === 'Contoso Labs' && r.role === 'Lead Engineer' && r.name === 'Lead Engineer, Contoso Labs', JSON.stringify(r));
-  // the copy says what it came from: under its name in the name card, on its card, and it is the selected card
-  const nm = await page.evaluate(() => ({ own: document.querySelector('#docname')?.textContent.replace(/\s+/g, ' ').trim(), from: document.querySelector('#head .dfrom')?.textContent }));
+  // the copy says what it came from: in its name window, on its card, and it is the selected card; the name card shows its position and workplace
+  await page.click('#docname-btn'); await settle(page);
+  const nm = await page.evaluate(() => ({ own: [...document.querySelectorAll('#docname :is(.nw-role, .nw-sub)')].map(e => { const c = e.cloneNode(true); c.querySelector('.nw-code')?.remove(); return c.textContent.trim(); }).join(' / '), from: document.querySelector('#switcher .swfrom')?.textContent }));
+  await page.keyboard.press('Escape'); await settle(page);
   await goLibrary(page);
   const lib = await page.evaluate(() => { const c = document.querySelector('#scr .rcard.sel'); return { id: c?.dataset.rid, from: c?.querySelector('.rfrom')?.textContent }; });
   const parentName = await page.evaluate(async id => (await import('/src/model/resumes.js')).resumeLabel(window.__wb.store.state.resumes.find(x => x.id === id)), parent);
-  ok('after the copy the name card has its own name and "from <parent>", and the Library has the copy selected with "from <parent>" on its card', nm.own === 'Lead Engineer, Contoso Labs' && nm.from === `from ${parentName}` && lib.id === s1.openId && lib.from === `from ${parentName}`, JSON.stringify({ nm, lib }));
+  ok('after the copy the name card has its position and workplace, its window says "Duplicated from <parent>", and the Library has the copy selected with "from <parent>" on its card', nm.own === 'Lead Engineer / Contoso Labs' && nm.from === `Duplicated from ${parentName}` && lib.id === s1.openId && lib.from === `from ${parentName}`, JSON.stringify({ nm, lib }));
   ok('…and its form is empty next time (the draft went with the copy)', (await goLibrary(page), await page.click(`#scr .rcard[data-rid="${parent}"] .rsel`), await page.click('#body [data-act=nj-open]'), await settle(page), await page.inputValue('#nj-company')) === '');
   ok('no errors', errors.length === 0, errors[0] ?? '');
   await ctx.close();
@@ -417,8 +419,10 @@ await part('the Library\u2019s toolbar: its groups, tiers and selection line; se
 await part('the sidebar’s card: what it names and Export takes (ticks win, else the open resume; the inspector names the selected one), the deck, the inspector’s strip', async () => {
   const { ctx, page, errors } = await open(1470, 832);
   const s0 = await st(page), ids = s0.ids.filter(id => id !== s0.openId), L = await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); return Object.fromEntries(window.__wb.store.state.resumes.map(r => [r.id, RS.resumeLabel(r)])); }), lbl = id => L[id];
+  // what the name card shows for a resume: its position, workplace and custom word (switcher.js cardName), without the language code
+  const N = await page.evaluate(async () => { const SW = await import('/src/ui/switcher.js'), e = document.createElement('span'); return Object.fromEntries(window.__wb.store.state.resumes.map(r => { e.innerHTML = SW.cardName(r); return [r.id, e.textContent]; })); }), cardOf = id => N[id];
   const card = () => page.evaluate(() => { const h = document.querySelector('#head'), x = h.querySelector('.hstub'), d = h.querySelector('.hdeck'), hr = h.getBoundingClientRect(), xr = x.getBoundingClientRect();
-    return { tag: h.querySelector('.htagl')?.textContent, name: h.querySelector('.hmain .docname')?.textContent.replace(/\s+/g, ' ').trim(), note: h.querySelector('.dnote')?.textContent ?? '', deck: [...(d?.querySelectorAll('li:not(.hmore)') ?? [])].map(l => (l.classList.contains('is-insp') ? '>' : '') + l.textContent.replace(/\s+/g, ' ').trim()),
+    return { tag: h.querySelector('.htagl')?.textContent, name: (n => { n?.querySelector('.nw-code')?.remove(); return n?.textContent.replace(/\s+/g, ' ').trim(); })(h.querySelector('.hmain .docname')?.cloneNode(true)), note: h.querySelector('.dnote')?.textContent ?? '', deck: [...(d?.querySelectorAll('li:not(.hmore)') ?? [])].map(l => (l.classList.contains('is-insp') ? '>' : '') + l.textContent.replace(/\s+/g, ' ').trim()),
       more: h.querySelector('.hmorebtn')?.textContent ?? '', layers: h.dataset.layers, stub: x.textContent.replace(/\s+/g, ' ').trim(), foot: Math.abs(xr.width - hr.width + 14) < 3 && (!d || xr.top >= d.getBoundingClientRect().bottom - 1), side: Math.abs(hr.right - xr.right - 7) <= 1.5 && Math.abs(xr.top - hr.top - 7) <= 1.5,      // the stub is inset 7 px
       strip: [...(document.querySelector('#istrip:not([hidden])')?.children ?? [])].map(e => e.textContent.trim()).join(' ') }; });
   const xp = () => page.evaluate(() => ({ view: window.__wb.ui.view, ids: window.__wb.ui.xp?.ids, from: window.__wb.ui.xp?.from }));
@@ -435,10 +439,10 @@ await part('the sidebar’s card: what it names and Export takes (ticks win, els
   await page.click(`#scr .rcard[data-rid="${ids[1]}"] .rsel`); await settle(page);
   c = await card();
   const it = await page.evaluate(() => document.querySelector('#body .insp-res .ititle')?.textContent.trim());
-  ok('a selected resume: the card still names the open one, with no tag; the inspector names the selected one at its top', !c.tag && flat(c.name) === flat(lbl(s0.openId)) && !c.note && !c.strip && flat(it) === flat(lbl(ids[1])), JSON.stringify({ ...c, it }));
+  ok('a selected resume: the card still names the open one, with no tag; the inspector names the selected one at its top', !c.tag && flat(c.name) === flat(cardOf(s0.openId)) && !c.note && !c.strip && flat(it) === flat(lbl(ids[1])), JSON.stringify({ ...c, it }));
   await page.check(`#scr .rcard[data-rid="${ids[2]}"] .rtick`); await settle(page);
   c = await card();
-  ok('a tick wins over the selection: "1 ticked in the Library" names the ticked one; the inspector (still the selected one) says it is not in the export', c.tag === '1 ticked in the Library' && flat(c.name) === flat(lbl(ids[2])) && c.strip === 'Not in the export · Export takes the 1 ticked Add to export', JSON.stringify(c));
+  ok('a tick wins over the selection: "1 ticked in the Library" names the ticked one; the inspector (still the selected one) says it is not in the export', c.tag === '1 ticked in the Library' && flat(c.name) === flat(cardOf(ids[2])) && c.strip === 'Not in the export · Export takes the 1 ticked Add to export', JSON.stringify(c));
   await page.click('#istrip [data-act=scr-tick]'); await settle(page);
   c = await card();
   ok('"Add to export" ticks the inspector’s resume: two ticked are a deck of two rows over one sheet, the inspector’s marked; Export a bar inset along the foot, "Export 2"', c.tag === '2 ticked in the Library' && c.deck.join('|') === `${flat(lbl(ids[2]))}|>${flat(lbl(ids[1]))}` && c.layers === '1' && c.foot && c.stub === 'Export 2' && c.strip === '✓ In the export · 2 of 2 Take out', JSON.stringify(c));

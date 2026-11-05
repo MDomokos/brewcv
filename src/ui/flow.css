@@ -171,13 +171,10 @@ body[data-lens=picks] #body .insp-rec .clrow.is-off { opacity: .5; }
 body[data-lens=whole] #body .insp-rec .clrow .cb { visibility: hidden; }      /* hidden, not removed: nothing moves between the two */
 body[data-lens=whole] #body .insp-rec .clrow.is-off .clt { opacity: 1; color: var(--ink); }
 
-/* a short window: the name card takes less height */
+/* a short window: a phone's name is one line */
 @media (max-height: 850px){
   body:not([data-phone=true]) .col > #head .hrow.top { align-items: center; }
-  .col > #head .docname .dn { display: flex; gap: .35em; min-width: 0; white-space: nowrap; overflow: hidden; }
-  .col > #head .docname .dn .swco { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .col > #head .docname .dn .swrole { overflow: hidden; text-overflow: ellipsis; font-size: inherit; }
-  .col > #head .docname .dn .swrole::before { content: "— "; }
+  body[data-phone=true] .col > #head .docname .dn { display: flex; gap: .35em; min-width: 0; white-space: nowrap; overflow: hidden; }
 }
 
 /* ---- Fit and the page fill: once, at the top of Export ---- */

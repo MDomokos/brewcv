@@ -30,13 +30,16 @@ export const nameFrom = ({ company = '', role = '', word = '' } = {}) => {
   const head = [String(role).trim(), String(company).trim()].filter(Boolean).join(', '), w = String(word).trim();
   return [head, w].filter(Boolean).join(' · ');
 };
-// The custom word of a name: what follows "Role, Company" (or the older "Company - Role"). A name of neither form is all word.
+// The custom word of a name: what follows "Role, Company" (or the older "Company - Role", with a hyphen, en dash or em dash; either may end in
+// a language suffix " (FR)", which is no word). A name of neither form is all word.
 export function wordOf(r){
   const name = String(r?.name ?? '').trim(), company = String(r?.company ?? '').trim(), role = String(r?.role ?? '').trim();
-  for (const head of [[role, company].filter(Boolean).join(', '), [company, role].filter(Boolean).join(' - ')]){
+  const pair = sep => [company, role].filter(Boolean).join(sep);
+  for (const head of [[role, company].filter(Boolean).join(', '), pair(' - '), pair(' \u2013 '), pair(' \u2014 ')]){
     if (!head) continue;
-    if (name === head) return '';
-    const m = name.startsWith(head) && name.slice(head.length).match(/^(?: · | - )(.*)$/);
+    const rest = name.startsWith(head) ? name.slice(head.length).replace(/^ \([A-Za-z]{2,3}\)(?= · | - |$)/, '') : null;
+    if (rest === '') return '';
+    const m = rest?.match(/^(?: · | - )(.*)$/);
     if (m) return m[1].trim();
   }
   return name;

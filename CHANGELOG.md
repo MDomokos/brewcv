@@ -3,6 +3,7 @@
 ## 1.9.3 - 2026-11-04
 
 ### Changed
+- **A new name card and name window:** the card shows the position, workplace and language; the window rolls down from it with the name, a warning to duplicate before renaming for a new job, this resume's languages with a paper each, and the other resumes.
 - **A resume keeps the same lines in every language:** switching language prints each line at the same version number, a version can be chosen for one language only and brought back in line, and a small language tag shows which version each other language uses.
 - **The tabs above the card ease more calmly:** the open tab grows less and no longer hops or flashes, and the curve at its foot rises with its colour.
 - **Place switches are smoother:** the name card eases to its height between Resumes and Career instead of jumping, the sidebar panel fades in with its place, and the garden holds still while a place changes.

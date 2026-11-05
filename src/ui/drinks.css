@@ -320,7 +320,6 @@ html.is-switching :is(*, *::before, *::after):not(.matroll, .matroll *, .motionl
 /* Coffee: the same parts, plain. The head keeps its espresso band; every sheet is the one surface. */
 html[data-drink="coffee"] .col > #head { background: var(--band-bg); border-radius: var(--r-panel) var(--r-panel) 0 0; }
 html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #head { background: var(--band-bg); border-radius: var(--r-l); border-bottom: 2px solid var(--crema); }
-html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col.is-name > #head { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 html[data-drink="coffee"] .zoombar { border: 1px solid var(--line-strong); }
 
 /* The page moves flat in every drink: no lift, tilt or will-change on the sheet, which keeps the text sharp at any zoom (canvas.js only sets its translate and scale). */

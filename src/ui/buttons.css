@@ -45,6 +45,7 @@ button.press.keep[aria-pressed=true]:hover:not(:disabled) { background-color: co
 .grow + .del:not([role^=menuitem]) { margin-inline-start: 0; }
 button.del.press { background-color: transparent; border: 1.5px solid var(--bad); color: var(--bad); }
 button.del.press:is(:hover:not(:disabled), :focus-visible, .is-down) { background-color: var(--bad); border-color: var(--bad); color: var(--surface); }
+button.del.press[data-sure]:not(:disabled) { background-color: var(--bad); border-color: var(--bad); color: var(--surface); }      /* asking: the same Delete, solid, a second press confirms */
 button.del.press:has(> svg:only-child) { width: 28px; height: 28px; padding: 0; }      /* the X alone: a 28 box round the 16 px icon */
 :is(.tag, .cwbkw) button.del.press:has(> svg:only-child) { width: 24px; height: 24px; margin: -2px -8px -2px 3px; border-width: 1px; border-radius: var(--r-pill); }      /* in a tag: the same X, a 24 target with a slimmer ring */
 :is(#col, #scr) :is(.menu, .pop, [role=menu]) button.del[role^=menuitem] { color: var(--bad); justify-content: flex-start; gap: 8px; }
@@ -62,8 +63,9 @@ body:not([data-phone=true]):not(.is-intro) .col > #head > .hrow.top { align-item
 #head .htag { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 26px; padding: 4px 4px 0 12px; }
 #head .htagl { font: 700 10px/1.2 var(--font-label); letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
 #head .htagl.is-other { color: var(--accent); }
-body:not([data-phone=true]):not(.is-intro) #head .docname { padding: 2px 8px 8px 12px; border: 0; border-radius: 0; align-self: stretch; }
-body:not([data-phone=true]):not(.is-intro) #head .hmain .docname .dn { flex: 0 1 auto; }
+body:not([data-phone=true]):not(.is-intro) #head .docname { display: flex; align-items: flex-start; gap: 8px; margin: 7px; padding: 5px 10px; border: 0; border-radius: calc(var(--r-l) - 7px); align-self: stretch; overflow: clip; }
+body:not([data-phone=true]):not(.is-intro) #head .hmain .docname .dn { flex: 1 1 auto; min-width: 0; display: block; white-space: normal; overflow: visible; text-overflow: clip; font-size: inherit; }
+body:not([data-phone=true]):not(.is-intro) .col > #head > .hrow.top { padding: 0; }
 body:not([data-phone=true]):not(.is-intro) .col > #head > :is(.sentrow, .psub) { margin: 0; padding: 0 12px 8px; }
 #head > .psub { font-size: 12px; color: var(--ink-soft); }
 html[data-drink] body:not([data-phone=true]):not(.is-intro) #head .hstub { grid-column: 2; grid-row: 1 / span 12; align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
@@ -90,8 +92,8 @@ html[data-drink] body:not([data-phone=true]):not(.is-intro) .col > #head.is-many
 html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #head.is-many[data-layers="1"] { box-shadow: 5px 5px 0 -1px var(--band-bg), 5px 5px 0 0 var(--crema); }
 html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #head.is-many[data-layers="2"] { box-shadow: 5px 5px 0 -1px var(--band-bg), 5px 5px 0 0 var(--crema), 10px 10px 0 -1px var(--band-bg), 10px 10px 0 0 var(--crema); }
 #head :is(.docname, [data-act=menu]), #head :is(.docname, [data-act=menu]):is(:hover, :active, .is-down, [aria-expanded=true]) { box-shadow: none; }
-html #head .docname:hover { background-color: var(--hover); }      /* over Coffee's transparent head buttons */
-html #head .docname[aria-expanded=true] { background-color: var(--chrome-hover); }
+html #head .docname:hover, html #head .docname[aria-expanded=true] { background-color: var(--hover); box-shadow: none; }      /* over Coffee's transparent head buttons; the wash stays while the window is out */
+html #head .docname:focus:not(:focus-visible) { outline: 0; box-shadow: none; }
 
 /* the name window: "This resume" holds Duplicate and, at the far end, Delete; the list starts with + New resume, a row of its own (a dashed
    edge: a row to come); Manage all is a full-width secondary with an arrow */

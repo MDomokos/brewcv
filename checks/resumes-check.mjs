@@ -508,6 +508,12 @@ section('Use for a new job');
   const st = exampleState(), src = st.resumes[0], before = Object.keys(src).sort();
   ok('nameFrom builds "Role, Company · word"; wordOf reads the new form, the old form, and keeps a custom name', RS.nameFrom({ company: 'Feinmess GmbH', role: 'Konstrukteur' }) === 'Konstrukteur, Feinmess GmbH' && RS.nameFrom({ company: 'CAD', role: 'Engineer', word: 'EU' }) === 'Engineer, CAD · EU'
     && RS.wordOf({ name: 'Engineer, Acme · EU', company: 'Acme', role: 'Engineer' }) === 'EU' && RS.wordOf({ name: 'Engineer, Acme', company: 'Acme', role: 'Engineer' }) === '' && RS.wordOf({ name: 'Acme - Engineer - EU', company: 'Acme', role: 'Engineer' }) === 'EU' && RS.wordOf({ name: 'My own name', company: 'Acme', role: 'Engineer' }) === 'My own name');
+  {
+    const w = name => RS.wordOf({ name, company: 'Feinmess GmbH', role: 'Konstrukteur' });
+    ok('wordOf: the older form with an en or em dash, and a language suffix " (FR)", is no word; a word after it still is',
+      w('Feinmess GmbH \u2013 Konstrukteur') === '' && w('Feinmess GmbH \u2014 Konstrukteur (FR)') === '' && w('Feinmess GmbH - Konstrukteur (FR)') === '' && w('Konstrukteur, Feinmess GmbH (de)') === ''
+      && w('Feinmess GmbH \u2014 Konstrukteur (FR) \u00b7 referral') === 'referral' && w('Konstrukteur, Feinmess GmbH \u00b7 referral') === 'referral' && w('Something else') === 'Something else');
+  }
   const res = RS.duplicate(st, src.id, { name: RS.nameFrom({ company: 'Contoso Labs', role: 'Lead Engineer' }), company: 'Contoso Labs', role: 'Lead Engineer' });
   const kid = RS.savedOf(st, res.id);
   ok('a copy made for a job has the company and the role in the fields a resume already has, and opens under its parent', kid.company === 'Contoso Labs' && kid.role === 'Lead Engineer' && kid.parent === src.id && st.openId === kid.id && kid.name === 'Lead Engineer, Contoso Labs');

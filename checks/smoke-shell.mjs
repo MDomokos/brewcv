@@ -137,6 +137,7 @@ async function leaveExport(page){ if (await page.evaluate(() => ['export', 'sent
 const wordsAt = el => el.evaluate(e => { const r = e.ownerDocument.createRange(); r.selectNodeContents(e); const w = r.getClientRects()[0], b = e.getBoundingClientRect(); return w ? { x: w.left - b.left + 4, y: w.top - b.top + w.height / 2 } : { x: 4, y: 3 }; });
 async function openByName(page, text){
   await leaveExport(page);
+  if (!(await page.isVisible('#switcher')) && (await page.textContent('#docname').catch(() => '')).includes(text)) return;      // open already: the name window lists only the others
   if (!(await page.isVisible('#switcher'))) await page.click('#docname-btn');
   await page.waitForSelector('#switcher .sopt');
   await page.fill('#switcher #sw-q', text);       // the name window lists the recent ones; a search lists them all
@@ -144,11 +145,31 @@ async function openByName(page, text){
   await page.click(`#switcher .sopt:has-text("${text}")`);
   await settle(page);
 }
-// The language of the open resume: in the name window, a list of the languages in use, then the ones to add (the window closes on a choice)
+// The language of the open resume: in the name window, a row per language of the resume (a click switches and the window closes);
+// one it is not in yet is added first under + Add language
 async function pickLang(page, code){
-  if (!(await page.isVisible('#switcher'))) await page.click('#docname-btn');
-  await page.waitForSelector('#sw-lang', { state: 'attached' });
-  await pickOption(page, '#sw-lang', (await page.$(`#sw-lang option[value="${code}"]`)) ? code : `+${code}`);
+  if (!(await page.isVisible('#switcher'))){ await page.click('#docname-btn'); await settle(page); }
+  if (!(await page.$(`#switcher .nw-ln[data-l=${code}]`))){
+    if (!(await page.$(`#switcher [data-act=nw-tog][data-l=${code}]`))) await page.click('#switcher [data-act=nw-addl]');
+    await page.click(`#switcher [data-act=nw-tog][data-l=${code}]`); await settle(page);
+  }
+  if (await page.$(`#switcher .nw-ln[data-l=${code}][aria-current]`)){ await page.keyboard.press('Escape'); return; }
+  await page.click(`#switcher .nw-ln[data-l=${code}]`);
+}
+// a send of the open resume, from the Library's inspector (the name window lists only the other resumes): its first or last snapshot
+async function openSend(page, which){
+  await toLibrary(page);
+  const card = '#resumes .rcard.open .rsel';
+  if (await page.$(card) && (await page.getAttribute(card, 'aria-pressed')) !== 'true'){ await page.click(card); await settle(page); }
+  const sid = await page.evaluate(w => { const s = window.__wb.store.state, r = s.resumes.find(x => x.id === s.openId); return (w === 'first' ? r.snapshots[0] : r.snapshots.at(-1)).id; }, which);
+  const b = `#body [data-act=sw-snap][data-sid="${sid}"]`;
+  if (!(await page.isVisible(`${b} >> nth=0`))){ await page.click('#body .idet[data-k=sent] summary'); await settle(page); }
+  await page.click(`${b} >> nth=0`); await settle(page);
+}
+// the Library (the Resumes tab): the name window has no way there of its own
+async function toLibrary(page){
+  if (await page.isVisible('#switcher')){ await page.keyboard.press('Escape'); await settle(page); }
+  await page.click('#ptabs [data-p=library]'); await settle(page);
 }
 // The sidebar's About you: the Header level, from the name on the page
 async function toAbout(page){ await page.evaluate(() => window.__wb.setView(null)); await settle(page); await page.frameLocator('#sheet iframe').locator('.name').click(); await settle(page); await upTo(page, 'header'); await settle(page); }
@@ -377,7 +398,7 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
   await p2.click('[data-act=menu]');
   ok('the ⋯ menu has no Save to file (Export has it); the name card has no language tag (the name window has the language and paper)', !(await p2.$('.menu [data-act=save-file]')) && !(await p2.$('#head #filestate')) && !(await p2.$('#head #langbtn')) && !(await p2.$('#head .dline')));
   await p2.keyboard.press('Escape'); await p2.click('#docname-btn'); await settle(p2);
-  ok('the name window has the language and the paper, as lists', await p2.isVisible('#switcher .ddbtn[data-ddf=sw-lang]') && /English/.test(await p2.$eval('#sw-lang', e => e.selectedOptions[0].textContent)) && /English/.test(await p2.textContent('#switcher .ddbtn[data-ddf=sw-lang]')) && await p2.isVisible('#switcher .ddbtn[data-ddf=sw-paper]'));
+  ok('the name window has the resume\'s languages, each with its own paper', await p2.isVisible('#switcher .nw-ln[data-l=en][aria-current]') && /English/.test(await p2.textContent('#switcher .nw-stat')) && await p2.isVisible('#switcher .nw-pp [data-l=en][data-v=us-letter]'));
   await ctx2.close();
 }
 
@@ -1328,7 +1349,7 @@ if (want('the welcome language step, the interface language, Settings')) {
     ok('the interface follows the resume into English', u.lang === 'en' && u.design === 'Look');
     ok('and the toast is already in English', /This resume is now in English/.test(await page.textContent('#toast')));
     await page.click('#docname-btn'); await settle(page);
-    ok('the language list now has just the two in use', (await page.$$eval('#sw-lang option', o => o.filter(x => !/^[+-]/.test(x.value)).length)) === 2);
+    ok('the window lists the resume\'s two languages', (await page.$$('#switcher .nw-stat li')).length === 2);
     await pickLang(page, 'de'); await settle(page);
     ok('back to German, and so is the interface', (await ui(page)).lang === 'de');
     await page.click('[data-act=menu]'); await page.click('[data-act=goto][data-v=settings]'); await settle(page);
@@ -1999,9 +2020,9 @@ if (want('saved resumes')) {
   await page.keyboard.press('Control+o'); await settle(page);
   ok('Ctrl+O opens the switcher with the search box focused', await page.isVisible('#switcher') && (await page.evaluate(() => document.activeElement?.id)) === 'sw-q');
   const uniqueRows = () => page.evaluate(() => new Set([...document.querySelectorAll('#switcher .swrow')].map(r => r.dataset.rid)).size);
-  ok('the name window lists the recent resumes, the open one first and marked; Manage all says how many there are', (await uniqueRows()) >= 1 && (await uniqueRows()) <= 4 && /Recent/.test(await page.textContent('#switcher .swlist .lbl')) && (await page.$$('#switcher .swrow.is-cur')).length === 1 && /Manage all \(14\)/.test(await page.textContent('#switcher .swfoot')));
+  ok('the name window lists the other resumes (not the open one) under Other resumes, with no New resume or Manage all', (await uniqueRows()) >= 1 && (await uniqueRows()) <= 3 && /Other resumes/.test(await page.textContent('#switcher .nw-others h3')) && (await page.$$('#switcher .swrow.is-cur')).length === 0 && !(await page.$('#switcher :is(.swnew, .swfoot)')));
   ok('an older resume, with no parent on record, shows no “Duplicated from” line', !(await page.$('#switcher .swfrom')));
-  ok('it is a dialog with a labelled group of buttons for a screen reader, the open resume marked current', (await page.getAttribute('#sw-list', 'role')) === 'group' && (await page.$$('#switcher .sopt')).length >= 1 && (await page.$$('#switcher .sopt[aria-current=true]')).length >= 1 && (await page.getAttribute('#switcher', 'role')) === 'dialog');
+  ok('it is a dialog with a labelled group of buttons for a screen reader', (await page.getAttribute('#sw-list', 'role')) === 'group' && (await page.$$('#switcher .sopt')).length >= 1 && (await page.getAttribute('#switcher', 'role')) === 'dialog');
   await page.fill('#sw-q', 'medtech'); await settle(page);
   ok('a search lists every match, grouped by job type', (await uniqueRows()) === 1 && /Medtech/.test(await page.textContent('#switcher .sopt')));
   const before = await firstBullet(page);
@@ -2023,7 +2044,7 @@ if (want('saved resumes')) {
   await page.fill('#sw-q', 'medtech'); await settle(page);
   await page.click('#switcher .sopt:has-text("Medtech")'); await settle(page);
   ok('a click opens it', /Medtech/.test(await page.textContent('#docname')) && !(await page.isVisible('#switcher')));
-  ok('…and the last opened ones come first in the switcher', await (async () => { await page.click('#docname-btn'); await settle(page); const t = await page.textContent('#switcher .swlist .lbl'); await page.keyboard.press('Escape'); return /Recent/.test(t); })());
+  ok('…and the last opened ones come first in the switcher', await (async () => { await page.click('#docname-btn'); await settle(page); const id = await page.getAttribute('#switcher .swrow >> nth=0', 'data-rid'); await page.keyboard.press('Escape'); return /^Example Instruments/.test(id); })());
 
   // everything autosaves
   const h0 = await page.evaluate(() => window.__wb.store.history.undo);
@@ -2055,11 +2076,8 @@ if (want('saved resumes')) {
   r = saved(await st());
   ok('after a change, Save makes a second snapshot', r.snapshots.length === 2);
   await leaveExport(page);
-  await page.click('#docname-btn'); await settle(page);
-  ok('the switcher folds the snapshots under their resume', (await page.$$('#switcher .swrow.is-cur .snapline')).length >= 2 && /Sent to Smoke Test Co/.test(await page.textContent('#switcher .swrow.is-cur')));
-
   // a snapshot is read-only
-  await page.click('#switcher .swrow.is-cur .snapline >> nth=1'); await settle(page);
+  await openSend(page, 'first');
   const bar = await page.textContent('.snapbar');
   ok('opening a snapshot shows a clear bar', /Snapshot · sent to Smoke Test Co, Second Co/.test(bar) || /Snapshot · sent to/.test(bar), bar);
   ok('…with Export, Restore as current and Duplicate as new resume', await page.isVisible('[data-act=goto][data-v=export]') && await page.isVisible('[data-act=snap-restore]') && await page.isVisible('[data-act=snap-dup]'));
@@ -2074,12 +2092,12 @@ if (want('saved resumes')) {
   ok('Esc comes back to the snapshot, Esc again to the resume', await page.isVisible('.snapbar'));
   await page.keyboard.press('Escape'); await settle(page);
   ok('…and the bar goes', !(await page.isVisible('.snapbar')) && !(await page.evaluate(() => window.__wb.ui.snap)));
-  await page.click('#docname-btn'); await page.click('#switcher .swrow.is-cur .snapline >> nth=1'); await settle(page);
+  await openSend(page, 'first');
   const picksThen = JSON.stringify((await page.evaluate(() => { const s = window.__wb.store.state; return s.resumes.find(x => x.id === s.openId).snapshots[0].recipe.off ?? null; })));
   await page.click('[data-act=snap-restore]'); await settle(page);
   ok('Restore as current makes the resume print as it did', !(await page.isVisible('.snapbar')) && JSON.stringify((await st()).cur.off ?? null) === picksThen);
   const n = (await st()).resumes.length;
-  await page.click('#docname-btn'); await page.click('#switcher .swrow.is-cur .snapline >> nth=0'); await settle(page);
+  await openSend(page, 'last');
   await page.click('[data-act=snap-dup]'); await settle(page);
   ok('Duplicate as new resume makes one and opens it', (await st()).resumes.length === n + 1 && !(await page.isVisible('.snapbar')) && /\(/.test(await page.textContent('#docname')));
 
@@ -2097,11 +2115,17 @@ if (want('saved resumes')) {
   ok('…the lines with no version in that language are marked on the page, as the app already marks them', missing > 0 && (await frameDoc(page, d => d.querySelectorAll('.rb-miss, .rb-miss-tab').length)) > 0 && await page.isVisible('.missbar'), String(missing));
   await page.click('#docname-btn'); await settle(page);
   ok('the name window says where a copy came from: “Duplicated from …” (the open copy is in Hungarian, so the app says it in Hungarian)', /Másolat innen: Example Instruments/.test(await page.textContent('#switcher .swfrom')));
-  await page.click('#switcher .swrow.is-cur .smore'); await page.click('.rowmenu [data-act=rm-rename]'); await settle(page);
-  await page.fill('.swren[data-f=company]', 'Renamed By'); await page.fill('.swren[data-f=role]', 'Smoke'); await page.fill('.swren[data-f=word]', ''); await page.keyboard.press('Enter'); await settle(page);
+  await page.fill('#sw-rn-co', 'Renamed By'); await page.fill('#sw-rn', 'Smoke');
+  ok('changing the name warns: duplicate first, and Duplicate turns into Duplicate as new', await page.isVisible('#switcher .nw-warn') && (await page.textContent('#switcher .nw-dup')) === await page.evaluate(async () => (await import('./src/i18n/index.js')).t('nw.dupAsNew')) && await page.$eval('#switcher .nw-dup', b => b.classList.contains('is-warn')));
+  await page.click('#switcher .nw-wx');
+  ok('…the warning can be dismissed, and the typed name stays', !(await page.isVisible('#switcher .nw-warn')) && (await page.inputValue('#sw-rn')) === 'Smoke');
+  await page.focus('#sw-rn'); await page.keyboard.press('Enter'); await settle(page);
   ok('Rename changes the name and the file name', (await st()).cur.name === 'Smoke, Renamed By' && (await st()).cur.company === 'Renamed By' && (await st()).cur.role === 'Smoke' && (await st()).openId === 'Smoke, Renamed By.json');
-  ok('…and the switcher stays open with the new name', await page.isVisible('#switcher') && /Smoke.*Renamed By/.test(await page.textContent('#switcher .swrow.is-cur')));
-  await page.click('#switcher .swrow.is-cur .smore'); await page.click('.rowmenu [data-act=rm-delete]'); await settle(page);
+  ok('…and the card shows the new name', /Smoke/.test(await page.textContent('#docname')) && /Renamed By/.test(await page.textContent('#docname')));
+  await page.click('#docname-btn'); await settle(page);
+  await page.click('#switcher .swacts [data-act=rm-delete]'); await settle(page);
+  ok('Delete asks first, nothing removed yet', (await st()).resumes.some(x => x.id === 'Smoke, Renamed By.json') && !!(await page.$('#switcher .delask')));
+  await page.click('#switcher .swacts [data-act=rm-delete]'); await settle(page);
   ok('Delete removes it (Ctrl+Z brings it back) and opens another', !(await st()).resumes.some(x => x.id === 'Smoke, Renamed By.json') && !!saved(await st()));
   await page.keyboard.press('Escape');
   await page.keyboard.press('Control+z'); await settle(page);
@@ -2111,9 +2135,9 @@ if (want('saved resumes')) {
   await page.click('#docname-btn'); await settle(page);
   await page.fill('#sw-q', 'Example Instruments'); await settle(page);
   await page.click('#switcher .swrow[data-rid="Example Instruments - Design Engineer.json"] .sopt'); await settle(page);
-  await page.click('#docname-btn'); await settle(page);
-  await page.click('#switcher .swnew'); await settle(page);
-  ok('+ New resume opens the form in the panel', (await page.getAttribute('#body', 'data-view')) === 'new' && !(await page.isVisible('#switcher')));
+  await toLibrary(page);
+  await page.click('#scr [data-act=sw-new]'); await settle(page);
+  ok('New resume (the Library\'s) opens the form in the panel', (await page.getAttribute('#body', 'data-view')) === 'new' && !(await page.isVisible('#switcher')));
   ok('…Start from: a similar resume is the default, with the other two', (await page.$$('.startopt')).length === 3 && await page.isChecked('.startopt[data-start=latest] input'));
   await page.fill('#nv-co', 'Geospatial'); await page.fill('#nv-role', 'GIS Solutions Engineer');
   ok('there is no free-form name field, and Workplace and Position are asked', !(await page.$('#nv-name')) && (await page.textContent('#body')).includes('Workplace') && (await page.textContent('#body')).includes('Position'));
@@ -2128,13 +2152,12 @@ if (want('saved resumes')) {
   await page.click('[data-act=nv-create]'); await settle(page);
   const made = await st();
   ok('Create saves and opens it: named from For, outreach, a copy of the similar resume', made.cur.name === 'GIS Solutions Engineer, Geospatial' && made.cur.forKind === 'outreach' && made.openId === made.cur.id && JSON.stringify(made.cur.sections) === JSON.stringify(made.resumes.find(r => r.id === like.id).sections));
-  await page.click('#docname-btn'); await settle(page);
-  await page.click('#switcher .swnew'); await settle(page);
+  await toLibrary(page);
+  await page.click('#scr [data-act=sw-new]'); await settle(page);
   await page.click('[data-act=nv-create]'); await settle(page);
   ok('and no company is needed', (await st()).resumes.length === made.resumes.length + 1);
-  await page.click('#docname-btn'); await settle(page);
-  await page.click('#switcher [data-act=sw-manage]'); await settle(page);
-  ok('Manage all opens the Library, a place of its own drawn left of the sidebar (#scr), with its inspector in the sidebar, the selected card focused, and the place card small', (await page.evaluate(() => window.__wb.ui.view)) === 'resumes' && !(await page.isVisible('#switcher')) && (await rect(page, '#scr')).width > 700 && (await rect(page, '#head')).width < 450 && await page.evaluate(() => document.querySelector('#body').dataset.view === 'inspector' && document.activeElement?.matches('#scr .rcard.sel .rsel')));
+  await toLibrary(page);
+  ok('the Resumes tab opens the Library, a place of its own drawn left of the sidebar (#scr), with its inspector in the sidebar, the selected card focused, and the place card small', (await page.evaluate(() => window.__wb.ui.view)) === 'resumes' && !(await page.isVisible('#switcher')) && (await rect(page, '#scr')).width > 700 && (await rect(page, '#head')).width < 450 && await page.evaluate(() => document.querySelector('#body').dataset.view === 'inspector' && document.activeElement?.matches('#scr .rcard.sel .rsel')));
   ok('…with the search box, three views (Role, Date, Company), a tick box on each card, and in the inspector Use for a new job, Open and the row menu', (await page.$$('#scr-group option')).length === 3 && (await page.$eval('#scr-group', s => s.value)) === 'date' && !!(await page.$('#body .iacts .smore')) && (await page.$$('#resumes .rcard .rtick')).length > 10 && await page.isVisible('#scr-q'));
   ok('Compare is not offered until two are ticked', !(await page.$('#scr-cmp')) && (await page.check('#resumes .rcard[data-rid="Example Instruments - Design Engineer.json"] .rtick'), !(await page.$('#scr-cmp'))));
   await page.check('#resumes .rcard:has-text("Helix") .rtick');
@@ -2148,11 +2171,11 @@ if (want('saved resumes')) {
   ok('the Date view: the year bands, the open resume under Now, newest first', (await page.$$('#resumes h3.lbl')).length >= 1 && /Now/.test(await page.textContent('#resumes h3.lbl')));
   if (await page.$('#resumes .rcard:not(.open):has(.rbadges .pill) .rsel')){ await page.click('#resumes .rcard:not(.open):has(.rbadges .pill) .rsel >> nth=0'); await settle(page); }
   ok('…and the sends of a resume are listed in the inspector, under it', (await page.$$('#body .oi-sent [data-act=sw-snap]')).length >= 1);
-  await page.click('#body .idet[data-k=sent] summary'); await page.click('#body .oi-sent [data-act=sw-snap] >> nth=0'); await settle(page);
+  if (!(await page.isVisible('#body .oi-sent [data-act=sw-snap] >> nth=0'))) await page.click('#body .idet[data-k=sent] summary');      // it stays open once opened
+  await page.click('#body .oi-sent [data-act=sw-snap] >> nth=0'); await settle(page);
   ok('a send opens that snapshot, read-only', await page.isVisible('.snapbar') && (await page.evaluate(() => window.__wb.ui.view)) === null);
   await page.click('[data-act=snap-close]'); await settle(page);
-  await page.click('#docname-btn'); await settle(page);
-  await page.click('#switcher [data-act=sw-manage]'); await settle(page);
+  await toLibrary(page);
   ok('the view you left it on is remembered (Date)', (await page.$eval('#scr-group', s => s.value)) === 'date');
   await pickOption(page, '#scr-group', 'company'); await settle(page);
   ok('the Company view: grouped by the company of the For line and of each send, outreach marked', (await page.$$('#resumes h3.lbl')).length >= 5 && /Smoke Test Co/.test(await page.textContent('#resumes')) && /Geospatial/.test(await page.textContent('#resumes')));
@@ -2299,8 +2322,9 @@ if (want('languages')) {
   const st = () => page.evaluate(() => window.__wb.store.state);
   ok('the name card has no language button; the name window has a language list, a labelled select', !(await page.$('#langbtn')) && !(await page.$('#head .dline')));
   await page.click('#docname-btn'); await settle(page);
-  ok('it lists the languages you use (the example lists all ten) and the current one is chosen, with a label', (await page.$$eval('#sw-lang option', o => o.filter(x => !/^[+-]/.test(x.value)).length)) === 10 && /English/.test(await page.$eval('#sw-lang', e => e.selectedOptions[0].textContent)) && (await page.$$('label[for=sw-lang]')).length === 1);
-  ok('each with what is left to write', /to write|complete/.test(await page.$$eval('#sw-lang option', o => o.map(x => x.textContent).join())));
+  ok('it lists the resume\'s languages under Languages and paper, the current one marked', /Languages and paper/i.test(await page.textContent('#switcher .nw-langs h3')) && (await page.$$('#switcher .nw-stat li')).length >= 1 && /English/.test(await page.textContent('#switcher .nw-ln[aria-current]')));
+  await page.waitForFunction(() => /to write|complete/.test(document.querySelector('#switcher .nw-st')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+  ok('each with what is left to write', /to write|complete/.test(await page.textContent('#switcher .nw-stat')));
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc closes the window', !(await page.isVisible('#switcher')));
   await pickLang(page, 'hu'); await settle(page);
@@ -4394,7 +4418,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     const rows = await page.evaluate(() => [...document.querySelectorAll('#switcher .swrow')].map(r => { const co = r.querySelector('.swco'), ro = r.querySelector('.swrole'); return { tag: !!r.querySelector('.swtag'), roleCut: ro ? ro.scrollWidth > ro.clientWidth + 1 : false, coCut: co ? co.scrollWidth > co.clientWidth + 1 : false, noCompany: !r.querySelector('.sopt .muted') }; }));
     ok(`${tag}: the window’s rows (the recent ones) have no company column, and carry a small language/pages tag`, rows.length >= 1 && rows.length <= 3 && rows.every(r => r.tag && r.noCompany));
     ok(`${tag}: …a name that has to give way gives up the company, never the role alone`, rows.every(r => !(r.roleCut && !r.coCut)));
-    await page.click('[data-act=sw-manage]'); await settle(page);
+    await toLibrary(page);
     const man = await page.evaluate(() => { const b = document.querySelector('#scr').getBoundingClientRect(), hd = document.querySelector('#head').getBoundingClientRect(), ft = document.querySelector('#foot').getBoundingClientRect(); return { view: window.__wb.ui.view, bodyWide: b.width > innerWidth * 0.5, small: hd.width <= innerWidth / 2 && ft.width <= innerWidth / 2 }; });
     ok(`${tag}: Manage all is the Library: a card of its own left of the sidebar, with the place card and the foot small, no bar across the window`, man.view === 'resumes' && man.bodyWide && man.small, JSON.stringify(man));
     await page.check('#scr .rcard .rtick >> nth=0');      // one tick: the floating bar counts it, and Compare waits for a second
@@ -4414,7 +4438,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await settle(page);
 
     // ---- New resume ----
-    await page.click('#docname-btn'); await page.click('[data-act=sw-new]'); await settle(page);
+    await toLibrary(page); await page.click('#scr [data-act=sw-new]'); await settle(page);
     const order2 = await page.evaluate(() => [...document.querySelectorAll('#body .lbl')].map(l => l.textContent.trim().toLowerCase()));
     const ix = k => order2.findIndex(x => x.includes(k));
     ok(`${tag}: New resume asks in this order: For, Position, Workplace, Custom word, Start from, Language, Paper`, ix('for') === 0 && ix('for') < ix('position') && ix('position') < ix('workplace') && ix('workplace') < ix('custom word') && ix('custom word') < ix('start from') && ix('start from') < ix('language') && ix('language') < ix('paper'), order2.join(' | '));
@@ -4529,7 +4553,7 @@ if (want('accessibility: axe-core on every view')) {
       await leaveExport(page);
       await page.click('#tab-edit'); await settle(page);
       await page.click('#docname-btn'); await settle(page); await runAxe(page, 'the switcher');
-      await page.click('#switcher [data-act=sw-manage]'); await settle(page); await runAxe(page, 'the Library');
+      await toLibrary(page); await runAxe(page, 'the Library');
       await pickOption(page, '#scr-group', 'date'); await settle(page); await runAxe(page, 'the Library by date');
       await page.click('#resumes [data-act=scr-list]'); await settle(page); await runAxe(page, 'the Library as a list'); await page.click('#resumes [data-act=scr-cards]'); await settle(page);
       await pickOption(page, '#scr-group', 'role'); await page.check('#resumes .rcard .rtick >> nth=0'); await page.check('#resumes .rcard .rtick >> nth=1'); await page.click('#scr-cmp'); await settle(page); await runAxe(page, 'Compare, a mode of the Library');
@@ -4642,7 +4666,7 @@ if (want('deployed: a subpath, offline, a phone, names')) {
   }
   await p2.click('#docname-btn'); await settle(p2);
   views.push(...(await unnamed()).map(x => `switcher: ${x}`));
-  await p2.click('#switcher [data-act=sw-manage]'); await settle(p2);
+  await toLibrary(p2);
   views.push(...(await unnamed()).map(x => `Resumes screen: ${x}`));
   await p2.keyboard.press('Escape');
   await p2.mouse.move(300, 400); await settle(p2);

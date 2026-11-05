@@ -23,8 +23,13 @@ export const delBtn = (attrs, label, { text = true, name = '', row = false } = {
   `<button ${row ? 'role="menuitem" ' : ''}class="del${row ? '' : ' sm'}" ${attrs}${name || !text ? ` title="${esc(name || label)}"` : ''}${text ? '' : ` aria-label="${esc(name || label)}"`}>${icon('delete')}${text ? `<span>${esc(label)}</span>` : ''}</button>`;
 // The second step of a delete that takes more than one thing with it (a line with its versions, a resume with its sent copies, a kind with its
 // entries): the question, then what else may be done, Cancel, and the delete last. Undo still brings it back.
-export const delAskHtml = (question, yes, yesLabel, no, extra = '') =>
-  `<div class="missbar delask" role="alert"><p>${esc(question)}</p><div class="btns">${extra}<button class="ghost sm" ${no}>${h('btn.cancel')}</button>${delBtn(yes, yesLabel)}</div></div>`;
+// a line is a string, or [bold, rest]
+export const askLines = (lines, cls = '') => lines.map(l => `<p${cls}>${[].concat(l).map((x, i, a) => a.length > 1 && !i ? `<b>${esc(x)}</b>` : esc(x)).join(' ')}</p>`).join('');
+// one wrapping text block (bold lead, the rest after it), for the slim band and the row menu
+export const askInline = (lines, cls = '') => `<p${cls}>${lines.map(l => [].concat(l).map((x, i, a) => a.length > 1 && !i ? `<b>${esc(x)}</b>` : esc(x)).join(' ')).join(' ')}</p>`;
+export const delAskHtml = (question, yes, yesLabel, no, extra = '') => yes || extra
+  ? `<div class="missbar delask" role="alert">${askLines([].concat(question))}<div class="btns">${extra}<button class="ghost sm" ${no}>${h('btn.cancel')}</button>${yes ? delBtn(yes, yesLabel) : ''}</div></div>`
+  : `<div class="missbar delask is-slim" role="alert">${icon('warn', { role: 'inline' })}${askInline([].concat(question))}<button class="ghost sm" ${no}>${h('btn.cancel')}</button></div>`;
 
 // Every on/off in the sidebar is drawn here (and named by showSw): the tick, or with ?switches in the address the old pill.
 // shortcut: review flag for the tick-or-switch decision, remove when decided (deciding for switches: PILL = true, and sidebar.css's .sw.pill block stays)

@@ -429,6 +429,12 @@ table.cmp tr.setting th { color: var(--ink); }
 .pop__sub { padding: 2px 10px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); }
 .badge { position: absolute; top: -7px; right: -6px; background: var(--warn); color: var(--on-ink); font-size: 10px; border-radius: var(--r-pill); padding: 0 5px; line-height: 15px; }
 .missbar { background: var(--warn-bg); border: 1px dashed var(--warn); border-radius: var(--r-m); padding: 8px 10px; font-size: 12.5px; margin-bottom: 10px; }
+.missbar.is-slim { display: flex; align-items: center; gap: 8px; margin: 0; padding: 4px 6px 4px 10px; }
+.missbar.is-slim > svg { flex: none; width: 16px; height: 16px; color: var(--warn); }
+.missbar.is-slim > p { flex: 1 1 0; min-width: 0; margin: 0; line-height: 1.4; }
+.missbar.is-slim > button { flex: none; }
+.rowmenu.delask { display: flex; flex-wrap: wrap; gap: 4px 6px; padding: 6px 8px; }
+.rowmenu.delask > p { flex: 1 1 100%; margin: 0 0 2px; line-height: 1.4; }
 .missbar .list { margin-top: 6px; }
 .okbar { background: var(--ok-bg); border: 1px solid var(--ok-line); border-radius: var(--r-m); padding: 6px 10px; font-size: 12.5px; margin-bottom: 10px; }
 .item.miss-go { background: var(--raised); border: 1px solid var(--warn-line); padding: 4px 8px; font-size: 12.5px; }
@@ -1049,23 +1055,9 @@ body:not([data-phone=true]):not(.is-intro) .col > #head { flex: none; min-height
 body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #head { display: block; }
 body:not([data-phone=true]):not(.is-intro) .col > #body { background: var(--surface); border-radius: var(--r-l); box-shadow: var(--shadow-panel), inset -1px 0 0 var(--line-strong), inset 0 1px 0 var(--line-strong), inset 0 -1px 0 var(--line-strong); transition: background-color var(--m-base) var(--m-out); }      /* one shadow, down and to the right like every panel */
 body.is-quiet .col > #body { border-radius: var(--r-panel); }
-/* the name window: the name card and the switcher are one card; the editor card is gone. A desktop's editor has no footer: the editor card takes the column down to its end. */
+/* A desktop's editor has no footer: the editor card takes the column down to its end. (The name window: sidebar.css.) */
 body:not([data-phone=true]):not(.is-intro) .col > #foot { display: none; }
-body:not([data-phone=true]) .col.is-name > #body { display: none; }
-body:not([data-phone=true]):not(.is-intro) .col.is-name > #head { margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: var(--line); }
-body:not([data-phone=true]) .switcher { position: static; flex: 1 1 0; min-height: 0; max-height: none; width: auto; margin: 0 0 8px; padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 4px; overflow: auto; z-index: auto;
-  background: var(--surface); border: 1px solid var(--line-strong); border-top: 0; border-radius: 0 0 var(--r-l) var(--r-l); }
-body:not([data-phone=true]) .switcher[hidden] { display: none; }
-body:not([data-phone=true]) .switcher > * { flex: none; }
-body:not([data-phone=true]) .switcher > .swlist { flex: 1 1 auto; min-height: 64px; }      /* never squeezed to nothing: the window scrolls instead */
-body:not([data-phone=true]) .switcher > .lbl { margin: 6px 0 0; }
-body:not([data-phone=true]) .switcher > .lbl:first-child { margin-top: 0; }
-body:not([data-phone=true]) .switcher .swacts { flex-wrap: wrap; }
-.swlang { display: flex; gap: 6px; }
-.swlang #sw-lang { flex: 1 1 0; min-width: 0; }
-.swlang #sw-paper { flex: none; width: auto; }
 .switcher select.sw-q { font-size: 13px; padding: 5px 8px; }
-.swfrom { margin: -2px 0 0; overflow-wrap: anywhere; }
 .col > #head { flex: none; min-height: 50px; padding: 0 12px; display: flex; flex-direction: column; justify-content: center; border-bottom: 1px solid var(--line); position: relative; }
 .col > #head .hrow.top { height: 50px; gap: 6px; }
 .col > #head .hrow.notice { margin: 0 0 6px; }
@@ -1077,8 +1069,6 @@ body:not([data-phone=true]) .docname { flex: 1 1 0; min-width: 0; display: flex;
 body:not([data-phone=true]) .docname .dn { flex: 1 1 0; min-width: 0; display: grid; font-size: 13.5px; white-space: normal; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; }
 body:not([data-phone=true]) .docname .dn .swco { font-size: 13.5px; }
 body:not([data-phone=true]) .docname .dn .swrole { font-size: 12px; }
-body:not([data-phone=true]) .docname .car { flex: none; margin-top: 2px; display: grid; }
-body:not([data-phone=true]) .docname[aria-expanded=true] .car { transform: rotate(180deg); }
 body:not([data-phone=true]) .savestate { width: 28px; height: 28px; justify-content: center; border-radius: var(--r-s); }
 @media (prefers-reduced-motion: no-preference){ html:not([data-motion="reduce"]) .savestate .si.wait .ico { animation: savespin var(--m-slow) var(--m-inout); } }      /* one turn, not a loop */
 @keyframes savespin { to { transform: rotate(360deg); } }

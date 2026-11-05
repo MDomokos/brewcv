@@ -130,8 +130,7 @@ for (const lang of I.UI_LANGS){
     problems.push(...await pg.evaluate(() => { const d = document.querySelector('#body .ctop'), c = document.querySelector('#body').getBoundingClientRect(); if (!d) return ['the line level: no top row']; const r = d.getBoundingClientRect(), add = d.querySelector('.cadd'); return (r.right > c.right + 0.5 ? ['the line level: the top row runs out of the card'] : []).concat(add && add.scrollWidth > add.clientWidth + 1 ? ['the line level: the add pill is cut'] : []); }));
     await pg.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); });
     // the Resumes screen: its heading, the views, the ticks and each card's buttons are whole
-    await pg.click('#docname-btn'); await pg.waitForTimeout(250);
-    await pg.click('#switcher [data-act=sw-manage]'); await pg.waitForTimeout(350);
+    await pg.click('#ptabs [data-p=library]'); await pg.waitForTimeout(350);
     problems.push(...await pg.evaluate(() => {
       const out = [];
       for (const el of document.querySelectorAll('#resumes .scrhead button, #resumes .scrhead h2:not(.sr), #resumes .scrhead span, #resumes .racts button')){

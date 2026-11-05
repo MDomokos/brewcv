@@ -106,6 +106,8 @@ export function initString({ ui, sheet, canvas, selRect, leave }){
   }
   // where the ends are now, from the selection's place on the screen and the card's
   function measure(){
+    // while the name window is out the editor card is out of sight: the string leaves by its usual fade, its chip goes, and nothing is drawn
+    if (document.body.classList.contains('nw-win')){ if (svg.style.display !== 'none') svg.classList.add('is-off'); if (!mark.hidden) mark.hidden = true; return; }
     const body = document.querySelector('#body'), r = ui.sel.kind !== 'none' && body?.classList.contains('is-float') ? selRect() : null;
     if (!r){ hide(); return; }
     const card = body.getBoundingClientRect(), row = body.querySelector('.ctop')?.getBoundingClientRect(), vh = innerHeight;
@@ -157,5 +159,6 @@ export function initString({ ui, sheet, canvas, selRect, leave }){
   for (const ev of ['transitionend', 'transitioncancel']) document.addEventListener(ev, e => { if (e.target === card() && e.propertyName === 'margin-top'){ gliding = false; measure(); } });
   // a drink change redraws it at once, in the new drink's form
   onDrinkChange(() => { S.on = false; S.g = null; cancelAnimationFrame(S.raf); S.raf = 0; S.d = S.dt = away && tea() ? 1 : 0; S.geo = ''; requestAnimationFrame(update); });
+  { const col = document.getElementById('col'); if (col) new MutationObserver(() => requestAnimationFrame(update)).observe(col, { attributes: true, attributeFilter: ['class'] }); }      // the name window opening or closing
   return { update, get state(){ return { on: S.on, away, d: S.d, p: [...S.p], raf: !!S.raf }; } };
 }

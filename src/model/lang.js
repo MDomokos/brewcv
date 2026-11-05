@@ -302,11 +302,12 @@ export function switchLang(recipe, to, model = null, { whole = false } = {}){
   recipe.byLang = { ...(recipe.byLang ?? {}) };
   const { keep, own, ownMeta } = keepOf(recipe, model);
   const back = recipe.byLang[to] ?? {};
-  const format = isA4(recipe.format) ? a4FormatOf(to) : recipe.format;
+  const format = back.format ?? (isA4(recipe.format) ? a4FormatOf(to) : recipe.format);      // a language's own paper, else the rule
   const line = !whole && model ? linePicks(model, recipe, { ...recipe, lang: to, format, picks: {}, inLine: {} }, back.picks) : null;
   if (line){
     const mine = Object.fromEntries(Object.keys(recipe.inLine ?? {}).filter(f => recipe.picks?.[f] && String(versionById(model, recipe.picks[f])?.n) !== String(recipe.inLine[f])).map(f => [f, recipe.picks[f]]));
     if (Object.keys(mine).length) keep.picks = mine; else delete keep.picks;
+    if (recipe.format) keep.format = recipe.format;      // the paper stays with the language it was set for
   }
   if (Object.keys(keep).length || line) recipe.byLang[from] = keep; else delete recipe.byLang[from];      // an empty entry still says the resume is in that language too
   recipe.picks = line ? line.picks : back.picks ?? {};
@@ -318,8 +319,30 @@ export function switchLang(recipe, to, model = null, { whole = false } = {}){
   delete recipe.byLang[to];
   if (!Object.keys(recipe.byLang).length) delete recipe.byLang;
   if (to === DEFAULT_LANG) delete recipe.lang; else recipe.lang = to;
-  if (isA4(recipe.format)) recipe.format = format;
+  if (back.format || isA4(recipe.format)) recipe.format = format;
   return true;
+}
+
+// ---- the languages of one resume, as the name window shows them (resumeLangs above) ----
+// A language joins the resume as an empty entry in `byLang`; switching to it fills the resume from it. False when it was there already.
+export function addResumeLang(recipe, l){
+  if (resumeLangs(recipe).includes(l)) return false;
+  recipe.byLang = { ...recipe.byLang, [l]: {} };
+  return true;
+}
+// Takes a language off the resume: its own version choices, one-off texts, holds and paper. Never the current language.
+export function dropResumeLang(recipe, l){
+  if (l === (recipe.lang ?? DEFAULT_LANG) || !recipe.byLang?.[l]) return false;
+  const { [l]: _, ...rest } = recipe.byLang;
+  if (Object.keys(rest).length) recipe.byLang = rest; else delete recipe.byLang;
+  return true;
+}
+// The paper each language of the resume prints on: the current one's is `format`; another's is kept with it, else what a switch would give.
+export const langPaper = (recipe, l) => (l === (recipe.lang ?? DEFAULT_LANG) ? recipe.format ?? 'a4' : recipe.byLang?.[l]?.format ?? (isA4(recipe.format ?? 'a4') ? a4FormatOf(l) : recipe.format));
+export function setLangPaper(recipe, l, letter){
+  const f = letter ? 'us-letter' : a4FormatOf(l);
+  if (l === (recipe.lang ?? DEFAULT_LANG)) recipe.format = f;
+  else recipe.byLang = { ...recipe.byLang, [l]: { ...recipe.byLang?.[l], format: f } };
 }
 
 // Carries the tags of the version it translates. `n`: the number to save it at (a group's line prints one number in every language).

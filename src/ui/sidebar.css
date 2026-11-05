@@ -15,15 +15,8 @@
 :is(.jobname, .clname):has(> .jtl) { display: block; }
 :is(.jobname, .clname) > .org { white-space: normal; overflow: visible; text-overflow: clip; }
 .clmid > .clcaret .clname { min-width: auto; }
-/* the name card in a short window stays one line (head-check): the company is whole, only the role may end in an ellipsis */
-@media (max-height: 850px){
-  .col > #head .docname .dn .swco { flex: 0 0 auto; max-width: 100%; overflow: visible; text-overflow: clip; }
-}
 /* the place tabs are as wide as their words, not three equal thirds */
-/* the name window's language and paper lists, and the Library inspector's buttons, go under each other when they do not fit */
-.swlang { flex-wrap: wrap; }
-.swlang > .ddbtn { flex: 1 0 auto; width: auto; }
-.swlang > .ddbtn .ddt { overflow: visible; }
+/* the Library inspector's buttons go under each other when they do not fit */
 .insp-res .iacts { flex-wrap: wrap; row-gap: 6px; }
 .insp-res .iacts > button:first-child { min-width: auto; overflow: visible; text-overflow: clip; }
 
@@ -87,7 +80,7 @@ html[data-drink="coffee"] { --elev-pop: 4px 4px 0 color-mix(in srgb, var(--ink) 
    the surface it opens and stands up; the others sit lower and quieter, behind it. Tertiary/secondary, never primary; a 1 px travel on press
    (they are buttons); nothing moves at rest, and under reduced motion there is no transition to play. ---- */
 /* the name card's button: the tertiary press; while its window is open it reads as pressed in (sunk), the window over it a popover */
-#head .docname[aria-expanded=true] { background: var(--chrome-hover); box-shadow: var(--elev-inset); transform: none; }      /* over the tertiary press's hover */
+#head .docname[aria-expanded=true] { transform: none; }      /* over the tertiary press's hover; its wash is the hover's (buttons.css) */
 
 /* ---- 2b. The review flag ?switches (parts.js PILL): the old pill, as it was at feddab8, to set beside the tick.
    shortcut: review flag for the tick-or-switch decision, remove when decided ---- */
@@ -598,3 +591,96 @@ body:not([data-phone=true]) #body .opts button { box-sizing: border-box; height:
 body:not([data-phone=true]) #body :is(.field input, .mpf .mpbtn, .list .item[data-act=d-look], [data-act=mark-sent]) { box-sizing: border-box; height: var(--h-ctl); min-height: 0; padding-block: 0; }
 .scr .checklist .recmore .srow { box-sizing: border-box; height: calc(var(--h-ctl) * var(--cz, 1)); padding-block: 0; align-items: center; }
 body:not([data-phone=true]) #body .insp-res .ovw .ddbtn { box-sizing: border-box; height: var(--h-row); min-height: 0; padding-block: 0; }
+
+/* ---- The name card and the name window (switcher.js) ----
+   The card: the position, the workplace under it, the custom word as a pill; the language code and the chevron follow the last word as one
+   unit. The name area ends 7 px before Export; its wash (hover, or while the window is out) is inset 7 px and as tall as Export. */
+#head .nw-role { display: block; font: 600 18.5px/1.25 var(--font-ui); letter-spacing: -.005em; overflow-wrap: anywhere; }
+#head .nw-sub { display: block; margin-top: 1px; font: 500 14px/1.3 var(--font-ui); color: var(--ink-soft); overflow-wrap: anywhere; }
+#head .nw-sub i { font-style: normal; padding: 0 6px; border-radius: var(--r-pill); background: var(--hover-strong, var(--hover)); color: var(--ink); font-size: 12px; }
+#head .nw-tail { display: inline-block; max-width: 100%; white-space: nowrap; vertical-align: baseline; }
+#head .nw-tail.nw-flex { display: inline-flex; align-items: baseline; }
+#head .nw-tail.nw-flex > i { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#head .nw-end { flex: none; white-space: nowrap; }
+#head .nw-cue { display: inline-grid; place-items: center; vertical-align: -3px; width: 20px; height: 20px; margin-left: 4px; color: var(--ink-soft); }
+#head .nw-cue svg { width: 18px; height: 18px; }
+#head .docname:hover .nw-cue { color: var(--ink); }
+#head .docname[aria-expanded=true] .nw-cue svg { transform: rotate(180deg); }
+#head .nw-code { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--line-strong); border-radius: var(--r-xs); font: 700 10.5px/1.5 var(--font-label); letter-spacing: .06em; color: var(--ink-soft); cursor: pointer; vertical-align: 1px; }
+#head .nw-code:hover, #head .nw-code[aria-expanded=true] { color: var(--ink); background: var(--hover-strong, var(--hover)); }
+/* the card's language list, in the menus' style */
+.nw-lpop { position: fixed; z-index: 90; min-width: 170px; padding: 4px; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: var(--pop); box-shadow: var(--elev-pop); }
+.nw-lpop button { display: flex; justify-content: space-between; align-items: center; width: 100%; height: var(--h-row); padding: 0 8px; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--ink); font: 600 13px var(--font-ui); box-shadow: none; cursor: pointer; }
+.nw-lpop button small { margin-left: 12px; color: var(--ink-soft); font-size: 11px; }
+.nw-lpop button:hover { background: var(--hover); }
+.nw-lpop button[aria-checked=true] { background: var(--accent); color: var(--on-accent); }
+.nw-lpop button[aria-checked=true] small { color: inherit; }
+.nw-lpop .nw-lpop-add { margin-top: 3px; border-top: 1px solid var(--line); border-radius: 0 0 var(--r-xs) var(--r-xs); color: var(--ink-soft); }
+
+/* The window: one shape drawn under the card from the card's box (--nw-* on #col, switcher.js), as tall as what it holds. While it is out the
+   card's own outline is off, so the window's is the only one, and it carries the card's lift. What it covers keeps its layout: it is only out
+   of sight once the window is open. */
+html body.nw-win:not([data-phone=true]):not(.is-intro) .col > #head { border-color: transparent !important; background-clip: padding-box !important; box-shadow: none !important; transition: none !important; }
+body:not([data-phone=true]) .col > #switcher { position: absolute; z-index: 2; top: var(--nw-ht, 0); left: var(--nw-hl, 0); right: auto; width: var(--nw-hw, auto); max-height: calc(100% - var(--nw-ht, 0px) - 56px); box-sizing: border-box;
+  margin: 0; padding: calc(var(--nw-hh, 0px) - 2px) 0 0; display: flex; flex-direction: column; gap: 0; overflow: clip; text-align: left;
+  background: var(--lv-res); border: 1px solid var(--lv-res-edge); border-radius: var(--nw-hr, 14px); box-shadow: var(--lv-res-lift); }
+body:not([data-phone=true]) .col > #switcher[hidden] { display: none; }
+body:not([data-phone=true]) .col.nw-open > :is(#body, #bankcard) { visibility: hidden; }
+body.nw-win :is(#wbwadd, #find, #tip) { display: none !important; }
+/* the top layer: the card's own face, never scrolls; its groups sit 22 px apart, tight inside */
+#switcher .nw-top { flex: none; display: flex; flex-direction: column; gap: 16px; padding: 20px 16px 16px; }
+#switcher .nw-sec { display: flex; flex-direction: column; gap: 6px; }
+#switcher .nw-sec h3 { margin: 0; font: 700 11px/1.2 var(--font-label); letter-spacing: .07em; text-transform: uppercase; color: var(--label, var(--ink-soft)); }
+#switcher .nw-ren { display: flex; flex-direction: column; gap: 8px; }
+#switcher .nw-f { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+#switcher .nw-f label { font: 650 13px/1.2 var(--font-ui); color: var(--ink); }
+#switcher .nw-sec .nw-h { font-weight: 500; color: var(--ink-soft); text-transform: none; letter-spacing: 0; }
+#switcher .nw-f input { box-sizing: border-box; height: var(--h-ctl); min-height: 0; padding-block: 0; }
+#switcher .nw-f input.is-changed { border-color: var(--warn); box-shadow: 0 0 0 1px var(--warn); }
+#switcher :is(.nw-addword, .nw-add) { align-self: flex-start; height: var(--h-sm); min-height: 0; padding: 0 8px; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--ink-soft); font: 600 12px var(--font-ui); box-shadow: none; cursor: pointer; }
+#switcher :is(.nw-addword, .nw-add):hover { background: var(--hover); color: var(--ink); }
+/* the rename warning: a filled band in the warning colours, pointing at Duplicate (which reads Duplicate as new while it shows) */
+#switcher .nw-warn { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; padding: 8px 34px 8px 10px; border: 1px solid var(--warn); border-radius: var(--r-m);
+  background: color-mix(in srgb, var(--warn) 24%, var(--lv-res)); color: var(--ink); font-size: 12.5px; line-height: 1.35; }
+#switcher .nw-warn[hidden] { display: none; }
+#switcher .nw-warn > svg { flex: none; width: 18px; height: 18px; color: var(--warn); }
+#switcher .nw-warn > span { flex: 1 1 180px; }
+#switcher .nw-warn::after { content: ""; position: absolute; left: 34px; bottom: -7px; width: 12px; height: 12px; transform: rotate(45deg); background: color-mix(in srgb, var(--warn) 24%, var(--lv-res)); border-right: 1px solid var(--warn); border-bottom: 1px solid var(--warn); }
+#switcher .nw-warn .nw-wx { position: absolute; top: 4px; right: 4px; display: grid; place-items: center; width: var(--h-sm); height: var(--h-sm); min-height: 0; padding: 0; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--ink); box-shadow: none; cursor: pointer; }
+#switcher .nw-warn .nw-wx:hover { background: color-mix(in srgb, var(--warn) 25%, transparent); }
+/* this resume: where it was copied from, then Duplicate (the row's main button), Close resume and Delete (quiet, at the far end) */
+#switcher .nw-this { gap: 6px; margin-top: -6px; }   /* the rename's footer: 10px under the fields, on the card's own face */
+#switcher .nw-langs { margin-inline: -8px; padding: 14px 12px 12px; border: 1px solid var(--line); border-radius: var(--r-m); background: color-mix(in srgb, var(--lv-res) 95%, var(--ink)); }
+#switcher .nw-facts { margin: 2px 0 0; font-size: 12px; line-height: 1.5; color: var(--ink-soft); overflow-wrap: anywhere; }
+#switcher .nw-this .swacts button { box-sizing: border-box; height: var(--h-row); min-height: 0; padding-block: 0; }
+#switcher .nw-this .swacts > .nw-dup { font-weight: 700; }
+#switcher .nw-this .swacts > .nw-dup.is-warn { border-color: var(--warn); background: var(--warn); color: var(--lv-res); box-shadow: none; }
+#switcher .nw-this .swacts > .nw-quiet { border-color: transparent; background: transparent; box-shadow: none; color: var(--ink-soft); font-weight: 500; }
+#switcher .nw-this .swacts > .nw-quiet:hover { background: var(--hover); color: var(--ink); }
+#switcher .nw-this .swacts > .del { margin-inline-start: auto; }
+/* languages and paper: one line per language of this resume */
+#switcher .nw-stat { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+#switcher .nw-stat li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; column-gap: 8px; min-height: 28px; padding: 2px 4px 2px 8px; border-radius: var(--r-xs); background: var(--hover); }
+#switcher .nw-stat .nw-nm { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
+#switcher .nw-stat .nw-ln { flex: none; height: var(--h-sm); min-height: 0; margin-left: -4px; padding: 0 4px; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--ink); font: 700 13px var(--font-ui); box-shadow: none; cursor: pointer; }
+#switcher .nw-stat .nw-ln:hover:not([aria-current]) { background: var(--hover-strong, var(--hover)); }
+#switcher .nw-stat .nw-ln[aria-current] { cursor: default; }
+#switcher .nw-stat .nw-alt { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-soft); font: 500 11.5px var(--font-ui); text-decoration: underline dotted; }
+#switcher .nw-stat .nw-st { color: var(--ink-soft); font-size: 12px; white-space: nowrap; }
+#switcher .nw-stat .nw-st.is-todo { color: var(--ink); font-weight: 650; }
+#switcher .nw-seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--r-s); overflow: hidden; }
+#switcher .nw-seg button { box-sizing: border-box; height: var(--h-sm); min-height: 0; padding: 0 7px; border: 0; border-radius: 0; background: transparent; color: var(--ink); font: 700 11px/1 var(--font-label); box-shadow: none; cursor: pointer; }
+#switcher .nw-seg button + button { border-left: 1px solid var(--line-strong); }
+#switcher .nw-seg button[aria-pressed=true] { background: var(--accent); color: var(--on-accent); }
+#switcher .nw-x { flex: none; display: grid; place-items: center; width: var(--h-sm); height: var(--h-sm); min-height: 0; padding: 0; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--ink-soft); box-shadow: none; cursor: pointer; }
+#switcher .nw-x:hover:not(:disabled) { background: var(--hover-strong, var(--hover)); color: var(--ink); }
+#switcher .nw-x:disabled { opacity: .25; cursor: default; }
+#switcher .nw-addrow { display: flex; align-items: center; gap: 6px; }
+#switcher .nw-tog { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0; }
+#switcher .nw-tog button { box-sizing: border-box; height: var(--h-row); min-height: 0; padding: 0 9px; border: 1px solid var(--line-strong); border-radius: var(--r-pill); background: transparent; color: var(--ink); font: 700 12px/1 var(--font-label); box-shadow: none; cursor: pointer; }
+#switcher .nw-tog button:hover { background: var(--hover); }
+/* the lower layer: a deeper surface tucked under the top one, which scrolls by itself */
+#switcher .nw-low { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 0 8px 8px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--r-m); background: color-mix(in srgb, var(--lv-res) 90%, var(--ink)); }
+#switcher .nw-low > .nw-sec { padding: 14px 0 12px; }
+#switcher .nw-low .swlist { display: grid; gap: 2px; }
+#switcher .nw-low .sw-q[type=search] { box-sizing: border-box; height: var(--h-ctl); min-height: 0; padding-block: 0; }
