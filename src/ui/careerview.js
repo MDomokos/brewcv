@@ -43,7 +43,6 @@ const S = {
   about: false,           // About you's own fields are open
   skWrite: null, skAdd: null, iwrite: null, iadd: false,      // a skill word or an interest being written, a group or the interests getting a word
   ctx: null,              // what the sidebar speaks of: { card } | { line } | { sec } | null
-  todo: null,             // the language whose to-write list is open in the sidebar
   kind: null,             // the kind editor: { id | null, draft, del }
   focus: null,            // a selector to focus after the next draw
   reveal: false,          // scroll what gets the focus into view (an add, a kind, a jump from the sidebar); nothing else scrolls
@@ -567,15 +566,13 @@ function writeWord(wid, k, text){
   draw();
 }
 
-// ---- the sidebar: what is open, or the languages ----
+// ---- the sidebar: what is open, or the map of the career in the language read ----
 const resumeRows = () => (st().resumes ?? []).map(r => (cur() && r.id === cur().id ? cur() : r));
 const rname = r => RS.resumeLabel(r);
 const listedOf = (r, jid) => { try { return T.jobRefs(rec(), r).some(x => refId(x) === jid) ? T.listedBullets(rec(), r, jid) : []; } catch { return []; } };
 const CAP = 5;
 const sec = (label, inner) => `<section><h3>${label}</h3>${inner}</section>`;
 const hdr = (label, name, sub = '') => `<section><h3>${label}</h3><p class="ce-ct"><b title="${esc(name)}">${esc(name)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</p></section>`;
-const chip = (l, mark, { on = false, cls = '', attrs = '', title = '' } = {}) => `<${attrs ? 'button type="button"' : 'span'} class="ce-chip${on ? ' is-cur' : ''}${cls ? ' ' + cls : ''}" ${attrs} title="${esc(title)}"><b>${U(l)}</b><span>${mark}</span></${attrs ? 'button' : 'span'}>`;
-const chips = xs => `<div class="ce-chips">${xs.join('')}</div>`;
 // a resume that prints it: a link that opens that resume at the line or section, as the editor's own does
 function rlink(r, label, sel){
   const nm = rname(r);
@@ -594,71 +591,100 @@ function ctxKind(){
   return null;
 }
 function ctxHtml(k){
-  const lang = L(), m = rec(), langs = languages();
+  const lang = L(), m = rec();
   if (k === 'form') return sec(h('cv.details'), `<div class="ce-help">${h('cv.detailsHelp')}</div>`);
   if (k === 'about'){
-    const ids = aboutIds(), parts = [['tagline', 'cv.headline'], ['contact', 'cv.contactLine'], ['summary', 'cv.summary']].filter(x => ids[x[0]]);
-    const sel = { kind: 'bullet', id: ids.tagline ?? ids.summary, section: ids.tagline ? 'header' : 'summary' };
+    const ids = aboutIds(), sel = { kind: 'bullet', id: ids.tagline ?? ids.summary, section: ids.tagline ? 'header' : 'summary' };
     const rows = resumeRows().map(r => rlink(r, t(r.photo?.show ? 'cv.photoOn' : 'cv.photoOff'), sel));
-    const lg = chips(langs.map(l => {
-      const miss = parts.filter(([p]) => !versionsIn(m, ids[p], l).length && !(l === 'en'));
-      return miss.length ? chip(l, miss.length, { on: l === lang, cls: 'todo', attrs: `data-act="cv-ctxwrite" data-l="${l}" data-f="${esc(ids[miss[0][0]])}"`, title: t('cv.toWriteTip', { lang: lname(l), n: miss.length }) })
-        : chip(l, '✓', { on: l === lang, title: t('cv.allWritten', { lang: lname(l) }) });
-    }));
-    return `${hdr(h('cv.aboutYou'), m.basics?.name ?? '')}${sec(h('cv.printedBy'), rlist(rows, h('cv.noResume')))}${sec(h('cv.languages'), lg)}`;
+    return `${hdr(h('cv.aboutYou'), m.basics?.name ?? '')}${sec(h('cv.printedBy'), rlist(rows, h('cv.noResume')))}`;
   }
   if (k === 'sec'){
     const sd = doc(m, lang).secs.find(x => x.kind === S.ctx.sec); if (!sd) return '';
     const sid = secId(sd), total = sd.groupsOf ? sd.groupsOf.length : sd.items.length;
     const rl = resumeRows().map(r => { let on = false, n = 0; try { on = !!T.sectionList(m, r).find(x => x.id === sid)?.on; const li = T.itemList(m, r, sid); n = li ? li.filter(x => x.on).length : on ? total : 0; } catch { /* not in this resume */ } return [r, on, n]; });
-    const shown = rl.filter(x => x[1]);
-    const pr = rlist(shown.map(([r, , n]) => rlink(r, t('cv.nOf', { n, total }), { kind: 'section', id: sid })), h('cv.noResumeShows'));
-    let lg;
-    if (sd.groupsOf){
-      const ws = m.skillBank?.words ?? [];
-      lg = chips(langs.map(l => { const labels = m.i18n?.[l]?.labels ?? {}, miss = ws.filter(w => !(l === 'en' || w.same || labels[w.id])).length;
-        return miss ? chip(l, miss, { on: l === lang, cls: 'todo', attrs: `data-act="cv-skl" data-l="${l}"`, title: t('cv.toWriteTip', { lang: lname(l), n: miss }) }) : chip(l, '✓', { on: l === lang, title: t('cv.allWritten', { lang: lname(l) }) }); }));
-    } else if (!WORDED.includes(sd.kind)) lg = `<p class="ce-note">${h('cv.sameEverywhere')}</p>`;
-    else lg = chips(langs.map(l => { const miss = sd.items.filter(x => !wordIn(x.id, l).ok);
-      return miss.length ? chip(l, miss.length, { on: l === lang, cls: 'todo', attrs: `data-act="cv-ctxwrite" data-l="${l}" data-f="${esc(miss[0].id)}" data-k="${esc(sd.kind)}"`, title: t('cv.toWriteTip', { lang: lname(l), n: miss.length }) }) : chip(l, '✓', { on: l === lang, title: t('cv.allWritten', { lang: lname(l) }) }); }));
-    return `${hdr(h('cv.thisSection'), sd.label, t('cv.nItems', { n: total }))}${sec(h('cv.shownBy'), pr)}${sec(h('cv.languages'), lg)}`;
+    const pr = rlist(rl.filter(x => x[1]).map(([r, , n]) => rlink(r, t('cv.nOf', { n, total }), { kind: 'section', id: sid })), h('cv.noResumeShows'));
+    return `${hdr(h('cv.thisSection'), sd.label, t('cv.nItems', { n: total }))}${sec(h('cv.shownBy'), pr)}${!sd.groupsOf && !WORDED.includes(sd.kind) ? `<p class="ce-note">${h('cv.sameEverywhere')}</p>` : ''}`;
   }
   if (k === 'card'){
     const g = S.ctx.card, e = doc(m, lang).entries.find(x => x.grp === g); if (!e) return '';
     const claim = e.kind === 'work' || e.kind === 'project', ids = new Set(e.lines.map(x => x.id));
     const pr = !claim ? [] : resumeRows().map(r => [r, listedOf(r, e.id).filter(x => ids.has(x)).length]).filter(x => x[1]);
     const rs = !claim ? `<p class="ce-note">${h('cv.printsWhole')}</p>` : rlist(pr.map(([r, n]) => rlink(r, t('cv.nOfLines', { n, total: e.lines.length }), { kind: 'job', id: e.id })), h('cv.noResumePrints'));
-    const lg = chips(langs.map(l => { const x = doc(m, l).entries.find(y => y.grp === g), miss = x?.toWrite ?? 0;
-      return chip(l, miss || '✓', { on: l === lang, cls: miss ? 'todo' : '', attrs: `data-act="cv-ctxlang" data-l="${l}" data-g="${esc(g)}"`, title: miss ? t('cv.toWriteTip', { lang: lname(l), n: miss }) : t('cv.allWritten', { lang: lname(l) }) }); }));
     const arch = e.kind === 'education' ? '' : `<section><button type="button" class="ce-b" data-act="c-arch-entry" data-id="${esc(g)}">${h(e.kind === 'work' ? 'cv.archiveJob' : 'cv.archiveEntry')}</button></section>`;
-    return `${hdr(h('cv.thisEntry'), e.title, [e.org, e.place].filter(Boolean).join(' · '))}${sec(h('cv.printedBy'), rs)}${sec(h('cv.languages'), lg)}${arch}`;
+    return `${hdr(h('cv.thisEntry'), e.title, [e.org, e.place].filter(Boolean).join(' · '))}${sec(h('cv.printedBy'), rs)}${arch}`;
   }
   if (k === 'line'){
     const id = S.ctx.line, f = m.facts.find(x => x.id === id), vs = (f?.variants ?? []).map(v => m.variants.find(x => x.id === v)).filter(Boolean), jid = jobIdOf(id);
     const sel = jid ? { kind: 'bullet', id, job: jid, section: 'experience' } : { kind: 'bullet', id, section: 'summary' };
     const rl = resumeRows().map(r => { let label = null; try { if (!jid || listedOf(r, jid).includes(id)){ const v = T.chooseVariant(m, id, r).v; if (v) label = t('cv.printsN', { n: v.n }); } } catch { /* not printed */ } return [r, label]; }).filter(x => x[1]);
-    const lg = chips(langs.map(l => { const ls = vs.filter(v => (v.lang ?? 'en') === l), v = ls.find(x => x.id === f?.default?.[l]) ?? ls[0];
-      if (!v) return chip(l, t('cv.write'), { on: l === lang, cls: 'todo', attrs: `data-act="cv-ctxwrite" data-l="${l}" data-f="${esc(id)}"`, title: t('cv.writeItIn', { lang: lname(l) }) });
-      const rv = (v.tags ?? []).includes('needs-review'); return chip(l, '✓', { on: l === lang, cls: rv ? 'rev' : '', title: `${lname(l)}: ${one(v.text).slice(0, 90)}` }); }));
     const src = vs.find(v => v.source)?.source, cv = vs.find(v => (v.lang ?? 'en') === lang) ?? vs[0];
-    return `${hdr(h('cv.thisLine'), one(cv?.text ?? '').slice(0, 80))}${sec(h('cv.printedBy'), rlist(rl.map(([r, label]) => rlink(r, label, sel)), h('cv.noResumePrints')))}${sec(h('cv.languages'), lg)}${src ? sec(h('cv.source'), `<p class="ce-note">${esc(src)}</p>`) : ''}`;
+    return `${hdr(h('cv.thisLine'), one(cv?.text ?? '').slice(0, 80))}${sec(h('cv.printedBy'), rlist(rl.map(([r, label]) => rlink(r, label, sel)), h('cv.noResumePrints')))}${src ? sec(h('cv.source'), `<p class="ce-note">${esc(src)}</p>`) : ''}`;
   }
   return '';
 }
-function toWriteList(l){
-  const d = doc(rec(), l), out = [];
-  for (const k of ['tagline', 'contact', 'summary']) if (need(d.about[k])) out.push({ f: aboutIds()[k], text: `${t('cv.aboutYou')} · ${t(k === 'tagline' ? 'cv.headline' : k === 'contact' ? 'cv.contactLine' : 'cv.summary')}` });
-  for (const e of d.entries) for (const x of e.lines) if (x.fallback) out.push({ f: x.id, text: one(x.text) });
-  return out;
+// the language read: the app's segmented switch with what is left to write in each, or, from five languages, its list; none for one language
+function langSwitch(){
+  const ls = languages(), lang = L();
+  if (ls.length < 2) return '';
+  const n = l => toWriteIn(l);
+  if (ls.length > 4) return `<div class="ce-lsw"><select data-ce-lang aria-label="${esc(t('cv.language'))}">${ls.map(l => `<option value="${l}"${l === lang ? ' selected' : ''}>${esc(lname(l))} · ${n(l) ? esc(t('cv.nToWrite', { n: n(l) })) : '✓'}</option>`).join('')}</select></div>`;
+  return `<div class="ce-lsw"><div class="seg fill lswitch" role="group" aria-label="${esc(t('cv.language'))}">${ls.map(l => `<button type="button" data-act="cv-lang" data-l="${l}" aria-pressed="${l === lang}" title="${esc(n(l) ? t('cv.toWriteTip', { lang: lname(l), n: n(l) }) : t('cv.allWritten', { lang: lname(l) }))}">${U(l)} <small>${n(l) || '✓'}</small></button>`).join('')}</div></div>`;
+}
+// The map: every entry and section of the career, with a mark for each of its wordings in the language read: written (a soft dot), to write
+// (a ring in the accent), to review (half a dot). A name goes to its card, a mark to that wording's editor.
+const MARKS = 12;
+function mapHtml(){
+  const lang = L(), d = doc(rec(), lang), ids = aboutIds(), by = new Map(d.entries.map(e => [e.id, e]));
+  let nw = 0, nr = 0;
+  const meaning = st => (st === 'write' ? t('cv.mapWrite', { lang: lname(lang) }) : st === 'review' ? t('cv.mapReview') : t('cv.mapWritten'));
+  const mark = (attrs, text, st, count = 0) => { if (st === 'write') nw += count || 1; else if (st === 'review') nr += 1;
+    return `<button type="button" class="mk ${st}" data-act="cv-map" ${attrs} data-st="${st}" data-tip="${esc(meaning(st))}|${esc(one(text).slice(0, 160))}" aria-label="${esc(`${meaning(st)}: ${one(text).slice(0, 80)}`)}">${count ? `<em>${count}</em>` : ''}</button>`; };
+  const lineMark = (g, id, w) => mark(`data-g="${esc(g ?? '')}" data-f="${esc(id)}" data-mode="${need(w) ? 'write' : 'words'}"`, w.text, need(w) ? 'write' : w.review ? 'review' : 'done');
+  const row = (key, kind, title, attrs, marks) => {
+    const ms = marks.match(/<button[\s\S]*?<\/button>/g) ?? [], gap = / (write|review)"/.test(marks);
+    return `<div class="mprow${gap ? '' : ' ok'}" data-ol="${esc(key)}" style="--hk:${kindHue(kind)}"><button type="button" class="mt" data-act="cv-map" ${attrs}><span class="oc">${kindChip(kind, 'control')}</span><b>${esc(title)}</b></button><span class="mks">${ms.length > MARKS ? `${ms.slice(0, MARKS).join('')}<span class="mmore">+${ms.length - MARKS}</span>` : marks}</span></div>`;
+  };
+  const a = d.about;
+  const about = row('ce-about', 'about', a.name.text, 'data-about="1"', ['tagline', 'contact', 'summary'].filter(k => a[k] && ids[k]).map(k => lineMark(null, ids[k], a[k])).join(''));
+  const main = [], side = [];
+  for (const b of K.timelineLayout(rec(), { lang, hideArchived: true }).bands){
+    const mk = x => { const e = by.get(x.id); if (!e) return null;
+      const tm = mark(`data-g="${esc(e.grp)}" data-f="" data-title="1"`, e.title, e.titleMissing && lang !== 'en' ? 'write' : 'done');
+      return row(e.grp, e.kind, e.title, `data-g="${esc(e.grp)}"`, tm + e.lines.map(l => lineMark(e.grp, l.id, l)).join('')); };
+    main.push(...b.main.map(mk).filter(Boolean)); side.push(...b.side.map(mk).filter(Boolean));
+  }
+  const secs = d.secs.filter(x => x.count || x.kind === 'skills').map(x => {
+    const miss = x.groupsOf ? x.groupsOf.reduce((n, g) => n + (g.miss ? 1 : 0) + g.words.filter(w => w.miss).length, 0) : x.items.filter(i => i.titleMissing).length;
+    return row(`ce-${x.id}`, x.kind, x.label, `data-k="${esc(x.kind)}"`, mark(`data-k="${esc(x.kind)}"`, x.label, miss ? 'write' : 'done', miss));
+  }).join('');
+  const grp = (label, rows) => `<section class="mg"><h4 class="oh">${label}</h4>${rows}</section>`;
+  const parts = [nw && t('cv.nToWrite', { n: nw }), nr && t('cv.nToReview', { n: nr })].filter(Boolean).join(' · ');
+  const many = languages().length > 1;
+  const status = !parts ? (many ? t('cv.everythingWritten', { lang: lname(lang) }) : '') : many ? `${lname(lang)}: ${parts}` : parts;
+  return `${status ? `<p class="ce-status">${esc(status)}</p>` : ''}<nav class="ce-map" aria-label="${esc(t('cv.mapLabel'))}">${grp(h('cv.aboutYou'), about)}${main.length ? grp(h('career.colMain'), main.join('')) : ''}${side.length ? grp(h('career.colSide'), side.join('')) : ''}${grp(h('cv.skillsCreds'), secs)}</nav>`;
+}
+// the career file, at the foot: what it holds, when it was saved, and its two ways out
+function fileStats(){
+  const d = doc(rec(), L()), jobs = d.entries.filter(e => e.kind === 'work').length, lines = d.entries.reduce((n, e) => n + e.lines.length, 0), at = C.savedAt?.();
+  const when = at ? at.toLocaleTimeString([], { timeStyle: 'short' }) : '';
+  return [t('cv.nJobs', { n: jobs }), t('cv.nLines', { n: lines }), t('cv.nLangs', { n: languages().length }), when && t('cv.savedAt', { time: when })].filter(Boolean).map(esc).join(' · ');
+}
+const fileCard = () => `<div class="ce-file"><div class="ce-fh"><b>career.json</b><span class="ce-fb"><button type="button" class="sm press" data-tier="secondary" data-act="cv-filemenu" aria-haspopup="menu" aria-expanded="false">${h('ux2.modeExport')}</button><button type="button" class="sm press" data-tier="secondary" data-act="cv-file" data-v="copy">${h('cv.copyAiShort')}</button></span></div><small>${fileStats()}</small></div>`;
+// a save since the last draw: the stats line says when
+function saved(){ const n = document.querySelector('#body .ce-file small'); if (n && C.ui.view === 'record') n.innerHTML = fileStats(); }
+// the in-view entry's row is tinted, so the map says where the scroll is
+function spy(){
+  const sc = pane(), list = document.querySelector('#body .ce-map'); if (!sc || !list || C.ui.view !== 'record') return;
+  const y = sc.getBoundingClientRect().top + 90; let best = null, bt = -1e9;
+  for (const el of sc.querySelectorAll('.ce-doc #ce-about, .ce-doc [data-ce-card], .ce-doc .ce-box[id]')){ const top = el.getBoundingClientRect().top; if (top <= y && top > bt){ bt = top; best = el.dataset.ceCard ?? el.id; } }
+  if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2){ const all = sc.querySelectorAll('.ce-doc .ce-box[id]'); best = all[all.length - 1]?.id ?? best; }
+  best ??= 'ce-about';
+  for (const r of list.querySelectorAll('.mprow')) r.classList.toggle('is-cur', r.dataset.ol === best);
 }
 function sideHtml(){
   const k = ctxKind();
-  if (k) return `<section class="insp ce-side"><button type="button" class="ce-ctxback" data-act="cv-ctxoff">${h('cv.backToLangs')}</button>${ctxHtml(k)}</section>`;
-  const lang = L(), n = toWriteIn(lang);
-  const chipsH = languages().map(l => { const c = toWriteIn(l); return chip(l, c || '✓', { on: l === lang, cls: c ? 'todo' : '', attrs: `data-act="cv-lang" data-l="${l}" aria-pressed="${l === lang}"`, title: c ? t('cv.toWriteTip', { lang: lname(l), n: c }) : t('cv.allWritten', { lang: lname(l) }) }); });
-  let list = '';
-  if (S.todo === lang && n){ const w = toWriteList(lang); list = `<div class="ce-todo">${w.slice(0, 7).map(x => `<button type="button" data-act="cv-goto" data-f="${esc(x.f ?? '')}">${esc(x.text)}</button>`).join('')}${w.length > 7 ? `<small>${h('edit.andMore', { n: w.length - 7 })}</small>` : ''}</div>`; }
-  return `<section class="insp ce-side"><section><h3>${h('cv.languages')}</h3>${chips(chipsH)}<p class="ce-note ce-langnote">${n ? h('cv.linesToWrite', { lang: lname(lang), n }) : h('cv.everythingWritten', { lang: lname(lang) })}</p>${list}</section></section>`;
+  if (k) return `<section class="insp ce-side">${langSwitch()}<button type="button" class="ce-ctxback" data-act="cv-ctxoff">${h('cv.back')}</button>${ctxHtml(k)}</section>`;
+  return `<section class="insp ce-side ce-mapside">${langSwitch()}${mapHtml()}${fileCard()}</section>`;
 }
 
 // ---- menus: the toolbar's + Add, the right lane's head, the language list, the career file's Export ----
@@ -691,7 +717,6 @@ const addItem = ([k, ti, hk]) => (k === '~kind' ? `<button type="button" role="m
   : k.startsWith('~p:') ? `<button type="button" role="menuitem" data-act="cv-kind-new" data-p="${esc(k.slice(3))}">${presetIcon(k.slice(3))}<b>${esc(ti)}</b></button>`
   : `<div class="addrowk"><button type="button" role="menuitem" data-act="cv-add" data-what="${esc(k)}"><span class="ai" style="--hk:${kindHue(hk)}">${kindChip(hk)}</span><b>${esc(ti)}</b></button>${cog(k)}</div>`);
 const addMenu = scope => `<div class="addm inline-menu" role="menu" aria-label="${esc(t('career.add'))}">${addGroups(scope).map(([g, xs]) => `${g ? `<div class="ce-mg">${esc(g)}</div>` : xs.length && scope !== 'side' ? '<hr>' : ''}${xs.map(addItem).join('')}`).join('')}</div>`;
-const langMenu = () => `<div class="inline-menu" role="menu" aria-label="${esc(t('cv.language'))}">${languages().map(l => { const n = toWriteIn(l); return `<button type="button" role="menuitem" data-act="cv-lang" data-l="${l}"><b>${esc(lname(l))}${l === L() ? ' ✓' : ''}</b><small>${n ? h('cv.nToWrite', { n }) : h('cv.done')}</small></button>`; }).join('')}</div>`;
 const fileMenu = () => `<div class="inline-menu" role="menu" aria-label="${esc(t('cv.exportFile'))}">
   <button type="button" role="menuitem" data-act="cv-file" data-v="career"><b>${h('cv.dlCareer')}</b><small>${h('cv.dlCareerSub')}</small></button>
   <button type="button" role="menuitem" data-act="cv-file" data-v="jsonresume"><b>${h('cv.dlJson')}</b><small>${h('cv.dlJsonSub')}</small></button>
@@ -751,11 +776,7 @@ const fileCounts = () => { const d = doc(rec(), L()); return { jobs: d.entries.f
 // ---- drawing ----
 const pane = () => document.getElementById('scr');
 function toolbarHtml(search){
-  const ls = languages(), lang = L();
-  const sw = ls.length > 4
-    ? `<button type="button" class="ce-langbtn" data-act="cv-menu" data-menu="lang" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(t('cv.language'))}">${esc(lname(lang))}${toWriteIn(lang) ? ` · ${h('cv.nToWrite', { n: toWriteIn(lang) })}` : ' ✓'}${icon('caret', { role: 'inline' })}</button>`
-    : `<div class="seg ce-lang" role="group" aria-label="${esc(t('cv.language'))}">${ls.map(l => { const n = toWriteIn(l); return `<button type="button" data-act="cv-lang" data-l="${l}" aria-pressed="${l === lang}" title="${esc(n ? t('cv.toWriteTip', { lang: lname(l), n }) : t('cv.allWritten', { lang: lname(l) }))}">${U(l)}<small>${n || '✓'}</small></button>`; }).join('')}</div>`;
-  return `<div class="tbar ce-bar">${search}${sw}<button type="button" class="sm ce-tgl" data-act="cv-all" aria-pressed="${S.all}">${h(S.all ? 'cv.collapseAll' : 'cv.expandAll')}</button><button type="button" class="sm" id="ce-add" data-act="cv-menu" data-menu="add" aria-haspopup="menu" aria-expanded="false">${h('ux2.add')}</button></div>`;
+  return `<div class="tbar ce-bar">${search}<button type="button" class="sm ce-tgl" data-act="cv-all" aria-pressed="${S.all}">${h(S.all ? 'cv.collapseAll' : 'cv.expandAll')}</button><button type="button" class="sm" id="ce-add" data-act="cv-menu" data-menu="add" aria-haspopup="menu" aria-expanded="false">${h('ux2.add')}</button></div>`;
 }
 function html(q){
   if (S.adding && !['work', 'education', 'project', 'certificates', 'publications'].includes(S.adding) && !K.kindOf(rec(), S.adding)) S.adding = null;      // the kind was undone
@@ -775,7 +796,7 @@ function after(){
     if (f){ f.focus({ preventScroll: true }); if (f.tagName === 'TEXTAREA') f.setSelectionRange(f.value.length, f.value.length); else f.select?.(); }
   }
   if (f && how) reveal(sc, f, how);
-  marks2(); dim();
+  marks2(); dim(); spy();
 }
 // + Add: Career scrolls smoothly to where the new entry goes, and once it is there the entry's form grows open in place, what is below
 // sliding down. A hover add (on a section or a lane) grows open where it is, and scrolls only as far as the form needs to be seen. A jump
@@ -859,6 +880,7 @@ function watchFlow(){
 function dim(){
   const on = lensOn(), shown = on ? C.printed() : null, w = on ? C.work() : null;
   for (const c of pane()?.querySelectorAll('.ce-doc .ce-card[data-ce-card]') ?? []){
+    c.classList.toggle('is-sel', S.ctx?.card === c.dataset.ceCard && c.classList.contains('is-open'));      // the open entry wears the app's selection ring
     const x = on && (w[c.dataset.key] ?? []).find(e => e.id === c.dataset.ceCard);
     c.classList.toggle('is-off', !!on && !(x && [...Object.values(x.display ?? {}), ...(x.highlights ?? [])].some(f => shown.has(f))));
   }
@@ -871,7 +893,8 @@ function marks2(){
   if (bar){
     const r = bar.getBoundingClientRect(), ramp = r.height + 16;
     sc.style.setProperty('--ce-ramp', `${ramp}px`);
-    if (!SCROLL_TIMELINE) sc.style.setProperty('--ce-f', String(Math.min(1, sc.scrollTop / ramp)));      // a browser with no scroll timeline: the same strength, set from the scroll sc.style.setProperty('--ce-bx', `${r.left}px`); sc.style.setProperty('--ce-bw', `${r.width}px`); sc.style.setProperty('--ce-bt', `${r.top}px`); sc.style.setProperty('--ce-br', getComputedStyle(bar).borderTopLeftRadius); sc.style.setProperty('--ce-bh', `${r.height}px`); sc.style.setProperty('--ce-bb', `${r.bottom}px`);
+    if (!SCROLL_TIMELINE) sc.style.setProperty('--ce-f', String(Math.min(1, sc.scrollTop / ramp)));      // a browser with no scroll timeline: the same strength, set from the scroll
+    sc.style.setProperty('--ce-bx', `${r.left}px`); sc.style.setProperty('--ce-bw', `${r.width}px`); sc.style.setProperty('--ce-bt', `${r.top}px`); sc.style.setProperty('--ce-br', getComputedStyle(bar).borderTopLeftRadius); sc.style.setProperty('--ce-bh', `${r.height}px`); sc.style.setProperty('--ce-bb', `${r.bottom}px`);
   }
 }
 const SCROLL_TIMELINE = globalThis.CSS?.supports?.('animation-timeline: scroll()') ?? false;
@@ -897,11 +920,11 @@ const setLang = l => { C.setLang(l); };
 async function act(a, tg){
   const d = tg.dataset;
   switch (a){
-    case 'cv-lang': S.todo = d.l === L() && S.todo !== d.l ? d.l : d.l !== L() ? d.l : null; closePop(); if (d.l !== L()) setLang(d.l); else draw(); return true;
+    case 'cv-lang': closePop(); if (d.l !== L()) setLang(d.l); return true;
     case 'cv-all': { const on = !S.all; solo(null); S.all = on; if (on) for (const e of doc(rec(), L()).entries) if (e.lines.length || e.kind === 'work' || e.kind === 'project') S.open.add(e.grp); draw(); return true; }
     case 'cv-menu': {
       if (pop?.anchor === tg){ closePop(); return true; }
-      openPop(tg, d.menu, d.menu === 'lang' ? langMenu() : addMenu(d.menu === 'side' ? 'side' : 'all')); return true;
+      openPop(tg, d.menu, addMenu(d.menu === 'side' ? 'side' : 'all')); return true;
     }
     case 'cv-add': { const how = tg.closest('#ce-pop') ? 'menu' : 'here'; closePop(); startAdd(d.what, how); return true; }
     case 'cv-file': closePop(); await file(d.v); return true;
@@ -969,17 +992,14 @@ async function act(a, tg){
     case 'cv-inlsave': saveInl(); return true;
     case 'cv-inlcancel': S.inl = null; draw(); return true;
     case 'cv-ctxoff': solo(null); draw(); return true;
-    case 'cv-ctxlang': { const g = d.g; solo(g); S.focus = `[data-ce-card="${CSS.escape(g)}"] .ce-ch`; S.reveal = true; if (d.l !== L()) setLang(d.l); else draw(); return true; }
-    case 'cv-ctxwrite': {
-      const id = d.f, k = d.k;
-      solo(k ? null : groupOfFact(id));
-      S.reveal = true;
-      if (k){ S.ctx = { sec: k }; if (k === 'interests') S.iwrite = id; else { S.secEdit = k; S.focus = `[data-ce-er="${CSS.escape(id)}"] .ce-fi`; } }
-      else { S.fan.set(id, 'write'); S.ctx = { ...(S.ctx ?? {}), line: id }; S.focus = '#ce-ta'; }
-      if (d.l !== L()) setLang(d.l); else draw(); return true;
+    case 'cv-map': {      // the map: a name goes to its card and opens it, a mark to that wording's editor in the language read
+      const f = d.f, g = d.g || null;
+      if (f){ solo(g); S.fan.set(f, d.mode); S.ctx = { ...(S.ctx ?? {}), line: f }; S.focus = d.mode === 'write' ? '#ce-ta' : '.ce-doc .ce-fan'; S.reveal = 'here'; }
+      else if (d.k){ solo(null); S.secEdit = d.k; S.ctx = { sec: d.k }; S.focus = `.ce-doc [data-ce-sec="${CSS.escape(d.k)}"]`; S.reveal = 'jump'; }
+      else if (g){ solo(g); S.focus = `[data-ce-card="${CSS.escape(g)}"]`; S.reveal = 'jump'; }
+      else { solo(null); S.focus = '#ce-about'; S.reveal = 'jump'; }
+      draw(); return true;
     }
-    case 'cv-skl': solo(null); S.secEdit = 'skills'; S.ctx = { sec: 'skills' }; S.focus = '#ce-skills'; S.reveal = true; if (d.l !== L()) setLang(d.l); else draw(); return true;
-    case 'cv-goto': { const id = d.f; if (!id) return true; solo(groupOfFact(id)); S.reveal = true; S.fan.set(id, 'write'); S.ctx = { ...(S.ctx ?? {}), line: id }; S.focus = '#ce-ta'; draw(); return true; }
     case 'cv-ropen': return C.openAt(d.rid, JSON.parse(d.sel));
   }
   return false;
@@ -1018,11 +1038,13 @@ export function initCareerView(ctx){
   const bare = n => n.id === 'scr' || (!!n.closest?.('#scr .ce-doc') && !n.closest('.ce-card, .ce-box, .ce-about, .ce-addcard, .ce-inl, button, a, input, select, textarea, label, [data-act]'));
   document.addEventListener('click', e => { if (inCareer() && bare(e.target)) escape(true); }, true);
   document.addEventListener('pointerdown', e => { if (pop && !pop.el.contains(e.target) && !pop.anchor.contains(e.target)) closePop(); }, true);
-  document.addEventListener('scroll', e => { if (e.target.id === 'scr' && inCareer()){ closePop(); marks2(); } }, { capture: true, passive: true });
+  document.addEventListener('scroll', e => { if (e.target.id === 'scr' && inCareer()){ closePop(); marks2(); spy(); } }, { capture: true, passive: true });
   addEventListener('resize', () => { if (inCareer()) marks2(); }, { passive: true });
   document.addEventListener('input', e => { const k = e.target.dataset?.ceTa; if (k != null) S.drafts.set(k, e.target.value); });
   document.addEventListener('change', e => {
-    const tg = e.target; if (!inCareer() || !tg.closest?.('.ce-doc')) return;
+    const tg = e.target; if (!inCareer()) return;
+    if (tg.matches?.('select[data-ce-lang]')){ if (tg.value !== L()) setLang(tg.value); return; }
+    if (!tg.closest?.('.ce-doc')) return;
     if (tg.matches('[data-ce-fi]') && tg.closest('[data-ce-er]')){ saveRow(tg.closest('[data-ce-er]')); draw(); return; }
     if (tg.matches('[data-ce-iwin]')){ const id = tg.dataset.ceIwin; if (S.iwrite !== id) return; S.iwrite = null; const v = tg.value.trim(), lang = L(); if (v) commit(d => { if (lang === 'en') K.updateInterest(d.record, id, { name: v }, 'en'); else setWording(d, id, lang, v); }, t('cv.undoWriteIn', { lang: lname(lang) })); draw(); return; }
     if (tg.matches('[data-ce-gname]')){ commit(d => { K.updateSkill(d.record, tg.dataset.ceGname, { name: tg.value }, L()); }, t('undo.editItem')); draw(); return; }
@@ -1069,5 +1091,5 @@ export function initCareerView(ctx){
     draw();
   });
   document.addEventListener('dragend', () => { S.drag = null; for (const n of document.querySelectorAll('.ce-over, .is-drag')) n.classList.remove('ce-over', 'is-drag'); });
-  return { html, toolbarHtml, sideHtml, after, act, escape, closeMenus, fileCounts, languages, dim, solo: () => { solo(null); } };
+  return { html, toolbarHtml, sideHtml, langSwitch, saved, after, act, escape, closeMenus, fileCounts, languages, dim, solo: () => { solo(null); } };
 }

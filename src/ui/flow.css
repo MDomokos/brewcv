@@ -618,11 +618,7 @@ mark.fnd { background: var(--mark-soft); color: inherit; border-radius: 2px; pad
 #scr:has(.ce-doc) { overflow-anchor: none; }      /* what opens or closes never moves Career's scroll: the browser's anchoring is off, the shell keeps scrollTop */
 .scr .ce-bar { gap: 8px 12px; margin: 12px 0 20px max(0px, calc((100% - var(--ce-w)) / 2)); padding: 6px 10px; border-color: var(--line); border-radius: var(--r-l); background: var(--surface); box-shadow: var(--elev-low); }
 .scr .ce-bar .sw-q { width: 240px; }
-.scr .ce-bar :is(button.sm, .ce-langbtn) { height: var(--h-ctl); min-height: 0; padding: 0 12px; font-size: 13px; }
-.scr .ce-bar .ce-langbtn { display: inline-flex; align-items: center; gap: 6px; }
-.scr .ce-lang { display: inline-flex; gap: 2px; padding: 2px; }
-.scr .ce-lang button { display: inline-flex; align-items: center; gap: 4px; height: calc(var(--h-ctl) - 4px); padding: 0 8px; font: 600 12px/1 var(--font-ui); }
-.scr .ce-lang small { font-size: 10px; font-weight: 700; opacity: .75; }
+.scr .ce-bar button.sm { height: var(--h-ctl); min-height: 0; padding: 0 12px; font-size: 13px; }
 /* the fades: the top one from the toolbar's top edge to a little under its foot, as strong as Career is scrolled (none at the top, all of it
    once scrolled by the toolbar's height and 16px: --ce-f, driven by the scroll itself), and the foot's while there is more; a mask, so the
    toolbar's own shape stays whole. What lies under the masked bands is the ground's plain tone, so the mat (always the one that scrolls)
@@ -881,31 +877,18 @@ html[data-drink="coffee"] body.has-scr:has(#scr .ce-doc):not(:has(.matroll)) { b
 .ce-pop .inline-menu > button, .ce-pop .addrowk > button[role=menuitem] { display: flex; align-items: center; gap: 10px; width: 100%; min-height: var(--h-ctl); padding: 4px 8px; }
 .ce-pop .addrowk { display: flex; align-items: center; gap: 4px; }
 .ce-pop .addrowk .kset { flex: none; width: var(--h-row); height: var(--h-row); padding: 0; }
-.ce-pop.is-file .inline-menu > button, .ce-pop.is-lang .inline-menu > button { display: grid; gap: 1px; justify-items: start; }
-.ce-pop.is-lang .inline-menu > button { grid-template-columns: 1fr auto; align-items: center; }
+.ce-pop.is-file .inline-menu > button { display: grid; gap: 1px; justify-items: start; }
 .ce-pop small { color: var(--ink-soft); font-size: 11.5px; }
 .ce-pop .ce-mg { padding: 8px 8px 3px; color: var(--ink-soft); font: 700 10.5px/1 var(--font-label, var(--font-ui)); letter-spacing: .06em; text-transform: uppercase; }
 .ce-pop .ai { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-s); background: color-mix(in srgb, var(--hk) var(--hue-tint), var(--surface)); }
 .ce-pop .ai .si { display: grid; place-items: center; }
 
-/* the sidebar: the languages and what is left to write, or what is open in Career */
+/* the sidebar: the language read on top; under it the map of the career, or what is open in Career */
 .ce-side { display: flex; flex-direction: column; gap: 16px; }
 .ce-side > section > h3 { margin: 0 0 8px; color: var(--ink-soft); font: 700 11px/1 var(--font-label, var(--font-ui)); letter-spacing: .06em; text-transform: uppercase; }
-.ce-chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-.ce-chip { display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: var(--h-ctl); padding: 0 2px; border: 1px solid var(--line); border-radius: var(--r-s); background: var(--surface); color: var(--ink); font: 12px/1 var(--font-ui); box-shadow: none; }
-.ce-chip b { font: 700 13px/1 var(--font-label, var(--font-ui)); }
-.ce-chip span { color: var(--ink-soft); }
-.ce-chip.todo span { color: var(--ink); font-weight: 600; }
-.ce-chip.rev span { text-decoration: underline dotted; }
-button.ce-chip { cursor: pointer; }
-button.ce-chip:hover { background: var(--hover); border-color: var(--line-strong); }
-.ce-chip.is-cur { border-color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, var(--surface)); box-shadow: inset 0 0 0 1px var(--ink); }
 .ce-side .ce-note, .ce-side .ce-help { margin: 6px 0 0; color: var(--ink-soft); font-size: 12.5px; line-height: 1.45; }
 .ce-side .ce-help p { margin: 0 0 6px; color: var(--ink); }
-.ce-todo { display: grid; gap: 1px; margin-top: 8px; padding-left: 8px; border-left: 2px solid var(--line); }
-.ce-todo button { overflow: hidden; height: var(--h-row); padding: 0 6px; border: 0; border-radius: var(--r-s); background: transparent; color: var(--ink); font-size: 12.5px; text-align: left; text-overflow: ellipsis; white-space: nowrap; box-shadow: none; cursor: pointer; }
-.ce-todo button:hover { background: var(--hover); text-decoration: underline; }
-.ce-todo small, .ce-cx small { padding: 2px 6px; color: var(--ink-soft); font-size: 11.5px; }
+.ce-cx small { padding: 2px 6px; color: var(--ink-soft); font-size: 11.5px; }
 .ce-ctxback { align-self: flex-start; height: var(--h-row); padding: 0 8px; border: 0; border-radius: var(--r-s); background: transparent; color: var(--ink-soft); font: 600 12.5px/1 var(--font-ui); box-shadow: none; cursor: pointer; }
 .ce-ctxback:hover { background: var(--hover); color: var(--ink); }
 .insp-rec > .ce-ctxback { margin-bottom: 4px; }
@@ -921,6 +904,46 @@ button.ce-r span { text-decoration: underline; text-decoration-color: var(--line
 button.ce-r:hover { background: var(--hover); }
 .ce-r.is-this { color: var(--ink-soft); }
 .ce-side .ce-b { height: var(--h-row); min-height: 0; padding: 0 12px; font-size: 12.5px; }
+.ce-lsw { flex: none; }
+.ce-lsw .ddbtn { width: 100%; }
+.ce-lsw .seg.lswitch { flex-wrap: nowrap; background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.ce-lsw .seg.lswitch button { flex: 1 1 0; display: block; }
+.ce-lsw .seg small { display: inline; margin-left: 4px; }
+.ce-side > .ce-lsw { margin-bottom: -2px; }      /* 14px under the switch, with the side's gap */
+.insp-rec > .ce-lsw { margin-bottom: 14px; }
+/* the map: about, the two lanes, the sections; a mark per wording in the language read */
+#body:has(> .ce-mapside) { display: flex; flex-direction: column; padding: 20px; }
+.ce-mapside { flex: 1; min-height: 0; gap: 0; }
+.ce-mapside > .ce-lsw { margin-bottom: 14px; }
+.ce-status { flex: none; margin: 0; padding: 0 2px 14px; color: var(--ink); font: 500 15px/1.35 var(--font-ui); overflow-wrap: anywhere; }
+html[data-drink=coffee] .ce-status { font-size: 13.5px; }
+.ce-map { flex: 0 1 auto; min-height: 0; margin-block: auto; overflow: auto; display: flex; flex-direction: column; }
+.ce-map .mg + .mg { margin-top: 4px; padding-top: 5px; border-top: 1px solid var(--line); }
+.ce-map .oh { margin: 0 0 8px; padding: 0 6px; color: var(--ink-soft); font: 700 11.5px/1 var(--font-label, var(--font-ui)); letter-spacing: .06em; text-transform: uppercase; opacity: .75; pointer-events: none; }
+.mprow { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; min-height: 23px; padding: 2px 3px; border-radius: var(--r-s); }
+.mprow:hover { background: color-mix(in srgb, var(--hk) var(--hue-tint, 25%), var(--surface)); }
+.mprow.is-cur:not(:hover) { background: color-mix(in srgb, var(--ink) 9%, var(--surface)); }
+.mprow .mt { flex: 0 1 auto; display: flex; align-items: flex-start; gap: 7px; min-width: 0; max-width: 100%; min-height: 19px; height: auto; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--ink); font: 400 14.5px/1 var(--font-ui); text-align: left; cursor: pointer; }
+.mprow.ok .mt { color: var(--ink-soft); }
+.mprow .mt b { font-weight: 400; line-height: 1.25; overflow-wrap: anywhere; hyphens: auto; }
+.mprow .oc { flex: none; display: grid; place-items: center; width: 16px; height: 16px; margin-top: 1px; color: var(--ink); }
+.mprow .oc .si { display: grid; opacity: .5; }
+.mks { flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; min-width: 0; }
+.mk { position: relative; flex: none; width: 13px; height: 18px; min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; cursor: pointer; }
+.mk::after { content: ""; position: absolute; left: 2px; top: 4.5px; width: 9px; height: 9px; border-radius: 50%; background: var(--ink); opacity: .35; }
+.mk.write::after { background: transparent; opacity: 1; box-shadow: inset 0 0 0 1.5px var(--accent); }
+.mk.review::after { opacity: 1; background: linear-gradient(90deg, var(--ink-soft) 50%, transparent 50%); box-shadow: inset 0 0 0 1.5px var(--ink-soft); }
+.mk:hover::after { opacity: 1; }
+.mk:has(em) { width: 28px; }
+.mk em { position: absolute; left: 14px; top: 3px; color: var(--ink); font: 600 12px/12px var(--font-ui); font-style: normal; }
+.mmore { margin-left: 3px; color: var(--ink-soft); font: 500 11px/1 var(--font-ui); white-space: nowrap; }
+/* the career file at the foot */
+.ce-file { flex: none; display: grid; gap: 4px; margin-top: 20px; padding: 7px 12px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--surface); box-shadow: var(--shadow-chip, none); }
+.ce-fh { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.ce-fh b { font: 700 13px/1 var(--font-ui); }
+.ce-fb { display: flex; gap: 6px; }
+.ce-file small { color: var(--ink-soft); font-size: 11.5px; line-height: 1.35; overflow-wrap: anywhere; }
+.scr .ce-card.is-sel { box-shadow: 0 0 0 3px var(--accent); border-color: transparent; }      /* the ring of a selected entry in the checklist */
 /* the name card as the career file: the person's name, and under it the file and its counts */
 body:not([data-phone=true]) #head .docname.is-file { flex-direction: column; gap: 2px; cursor: default; }
 #head .docname.is-file .dt { font-family: var(--font-mono, ui-monospace, monospace); }

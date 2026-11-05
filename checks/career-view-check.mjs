@@ -16,6 +16,9 @@
 //   - the lanes keep their own time: a tall open card on the left does not move the right lane; with every card open each lane is in order;
 //   - the top fade's strength follows the scroll (none at the top, full past the toolbar's height and 16px), and runs from the toolbar's top edge, through its corners, to just under its foot;
 //   - every kind of field reads at 4.5:1 on its surface in Career and the Editor's About you; the month picker's months and field too, in Career and in Mark as sent, Tea dark and Coffee light;
+//   - the sidebar's map: a mark per wording in the language read (German: 17 to write, 13 to review), fitting at 1440x860; a mark opens
+//     that line's editor in that language, a name its card in the selection ring; the switch is segments to four languages, a list from five,
+//     none for one;
 //   - Mark as read takes a machine-made wording's review flag off, one undo step, and Ctrl+Z puts it back;
 //   - under 860px the timeline is one column.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing.
@@ -52,6 +55,8 @@ async function open(w, h, { motion = false, look = ['tea', 'light'] } = {}){
   return { ctx, page, errors };
 }
 const settle = page => page.waitForTimeout(250);
+// the language read, from the sidebar's switch: its segments, or (five languages and more) its list
+const readIn = async (page, l) => { await page.evaluate(l => { const s = document.querySelector('#body select[data-ce-lang]'); if (s){ s.value = l; s.dispatchEvent(new Event('change', { bubbles: true })); } else document.querySelector(`#body .ce-lsw button[data-l=${l}]`).click(); }, l); await settle(page); };
 const editors = page => page.evaluate(() => document.querySelectorAll('#scr :is(.ce-det, .ce-v.is-edit, .ce-addcard, .ce-inl, .ce-se, .ce-fan)').length);
 // a picture's pixels, read back through a canvas in a blank page
 async function pixels(ctx, png){
@@ -239,7 +244,7 @@ async function pixels(ctx, png){
   await page.keyboard.press('Escape'); await settle(page);
 
   // a machine-made wording can be marked as read, in Career, as one undo step
-  await page.evaluate(() => document.getElementById('scr').scrollTo(0, 0)); await page.click('#body .ce-chip[data-l=de]'); await settle(page);
+  await page.evaluate(() => document.getElementById('scr').scrollTo(0, 0)); await readIn(page, 'de');
   await page.click('#scr .ce-about .ce-ap.tg'); await settle(page);
   const flagged = () => page.evaluate(() => (window.__wb.store.state.record.variants.find(v => v.id === 'tagline-v1-de')?.tags ?? []).includes('needs-review'));
   const rf0 = await flagged(), u3 = await undo();
@@ -247,7 +252,7 @@ async function pixels(ctx, png){
   ok('Mark as read takes a machine-made wording\u2019s review flag off, one undo step, and the mark goes', rf0 && !(await flagged()) && (await undo()) === u3 + 1 && !(await page.$('#scr .ce-abfan [data-act=cv-read][data-v=tagline-v1-de]')));
   await page.keyboard.press('Control+z'); await settle(page);
   ok('…and Ctrl+Z puts it back', await flagged());
-  await page.keyboard.press('Escape'); await page.click('#body .ce-chip[data-l=en]'); await settle(page);
+  await page.keyboard.press('Escape'); await readIn(page, 'en');
 
   // a narrow card under the open resume's picks: the hover "+ Add" and "On this resume" both show
   await page.evaluate(() => document.querySelector('#scr .ce-box[data-ce-sec=languages]').scrollIntoView({ block: 'center' }));
@@ -258,6 +263,46 @@ async function pixels(ctx, png){
     return { label: a.width > 40 && getComputedStyle(sw).fontSize !== '0px', add: getComputedStyle(add).opacity === '1' && b.width > 0, apart: a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top, w: Math.round(r(h).width) };
   });
   ok('in a narrow card the hover add and "On this resume" both show, apart', narrow.label && narrow.add && narrow.apart, JSON.stringify(narrow));
+  ok('no errors', errors.length === 0, errors[0] ?? '');
+  await ctx.close();
+}
+
+// The sidebar's map: a mark per wording in the language read, a name opens its card, a mark that wording's editor; the switch on top
+{
+  const { ctx, page, errors } = await open(1440, 860);
+  const map = () => page.evaluate(() => {
+    const m = document.querySelector('#body .ce-map'), bd = document.getElementById('body'), f = document.querySelector('#body .ce-file'), R = e => e.getBoundingClientRect();
+    const n = sel => [...document.querySelectorAll(`#body .ce-map .mk${sel}`)].reduce((k, x) => k + (Number(x.querySelector('em')?.textContent) || 1), 0);
+    return { write: n('.write'), review: n('.review'), status: document.querySelector('#body .ce-status')?.textContent ?? '', rows: document.querySelectorAll('#body .ce-map .mprow').length,
+      heads: [...document.querySelectorAll('#body .ce-map .oh')].map(x => getComputedStyle(x).pointerEvents), fits: !!m && m.scrollHeight <= m.clientHeight + 1 && bd.scrollHeight <= bd.clientHeight + 1 && R(f).bottom <= R(bd).bottom + 1,
+      sw: !!document.querySelector('#body .ce-side > .ce-lsw'), opt: document.querySelector('#body select[data-ce-lang] option[value=de]')?.textContent ?? '',
+      file: [...document.querySelectorAll('#body .ce-file button.sm.press[data-tier=secondary]')].map(b => b.dataset.act) };
+  });
+  const idle = await map();
+  ok('the idle sidebar is the switch over the map, with the career file at the foot and its Export and Copy for AI', await page.evaluate(() => !document.querySelector('#body .ce-chips') && !document.querySelector('#scr .ce-bar select, #scr .ce-bar [data-l]')) && idle.sw && idle.file.join() === 'cv-filemenu,cv-file', JSON.stringify(idle));
+  await readIn(page, 'de');
+  const de = await map();
+  ok('in German the map shows 17 to write and 13 to review, as its status line and the switch say', de.write === 17 && de.review === 13 && de.status === 'Deutsch: 17 to write · 13 to review' && /17/.test(de.opt), JSON.stringify(de));
+  ok('the map’s group headings are plain labels', de.heads.length === 4 && de.heads.every(p => p === 'none'));
+  ok('the map fits at 1440×860 with the example career: nothing scrolls', de.fits, JSON.stringify(de));
+  // a mark: that line's editor, in German
+  const target = await page.evaluate(() => { const b = document.querySelector('#body .ce-map .mk.write[data-f]:not([data-f=""])'); return { f: b.dataset.f, g: b.dataset.g }; });
+  await page.click(`#body .ce-map .mk.write[data-f="${target.f}"]`); await settle(page);
+  const ed = await page.evaluate(g => { const a = document.activeElement, card = a?.closest('.ce-card'); return { ta: a?.id === 'ce-ta', card: card?.dataset.ceCard === g || (!g && !!a?.closest('.ce-about')), de: /\bDE\b/.test(a?.closest('.ce-v')?.textContent ?? ''), seen: (r => r.top >= 0 && r.bottom <= innerHeight)(a.getBoundingClientRect()) }; }, target.g);
+  ok('a mark to write opens that line’s editor in German, focused and in view', ed.ta && ed.card && ed.de && ed.seen, JSON.stringify(ed));
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
+  // a name: its card, open, in the selection ring; the sidebar speaks of it under the switch, with Back to the map
+  await page.click('#body .ce-map .mprow .mt[data-g]:not([data-g=""])'); await settle(page);
+  const nm = await page.evaluate(() => ({ sel: document.querySelectorAll('#scr .ce-card.is-sel.is-open').length, ring: getComputedStyle(document.querySelector('#scr .ce-card.is-sel') ?? document.body).boxShadow, back: !!document.querySelector('#body .ce-side > .ce-lsw + .ce-ctxback') }));
+  ok('a name opens its card in the selection ring; the sidebar keeps the switch on top, with Back', nm.sel === 1 && /3px/.test(nm.ring) && nm.back, JSON.stringify(nm));
+  await page.click('#body .ce-ctxback'); await settle(page);
+  ok('Back gives the map again', await page.evaluate(() => !!document.querySelector('#body .ce-map') && !document.querySelector('#scr .ce-card.is-open')));
+  // four languages: the segments, equal, each with its count inline; one language: no switch
+  await page.evaluate(() => window.__wb.store.commit(d => { d.record.langs = ['en', 'de', 'fr', 'hu']; }, 'langs')); await settle(page);
+  const seg = await page.evaluate(() => { const bs = [...document.querySelectorAll('#body .ce-lsw .seg.lswitch button')]; return { t: bs.map(b => b.textContent.replace(/\s+/g, ' ').trim()), w: bs.map(b => Math.round(b.getBoundingClientRect().width)), top: bs.map(b => Math.round(b.getBoundingClientRect().top)) }; });
+  ok('with four languages the switch is four equal segments, each count on its line ("DE 17", "EN ✓")', seg.t.join() === 'EN ✓,DE 17,FR 17,HU 19' && Math.max(...seg.w) - Math.min(...seg.w) <= 1 && new Set(seg.top).size === 1, JSON.stringify(seg));
+  await page.evaluate(() => window.__wb.store.commit(d => { d.record.langs = ['en']; }, 'langs')); await settle(page);
+  ok('a career in one language has no switch, and its status no language name', await page.evaluate(() => !document.querySelector('#body .ce-lsw') && !!document.querySelector('#body .ce-map') && !/English/.test(document.querySelector('#body .ce-side')?.textContent ?? '')));
   ok('no errors', errors.length === 0, errors[0] ?? '');
   await ctx.close();
 }

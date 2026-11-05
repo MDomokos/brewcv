@@ -194,7 +194,7 @@ async function boot(){
   document.addEventListener('fullscreenchange', relayout);
   // the browser's storage is full: said once, in a toast; the header's Saved mark carries the same words from then on
   let toldFull = false;
-  persist.onStatus(s => { renderHead(); if (s.code === 'storage-full' && !toldFull) toast(s.error, 'bad'); toldFull = s.code === 'storage-full'; });
+  persist.onStatus(s => { renderHead(); if (s.status === 'saved') careerView.saved(); if (s.code === 'storage-full' && !toldFull) toast(s.error, 'bad'); toldFull = s.code === 'storage-full'; });
   store.subscribe(onChange);
   // an older session may hold a resume that was never saved: save it now, as every change from here on does
   if (cur() && !store.state.openId && !store.state.closed) store.commit(() => {}, t('ux1.undoSaveDraft'));
@@ -1747,7 +1747,7 @@ checklist.bind($('#body'));
 window.__wb.checklist = checklist;
 // the facts the open resume's page prints, as drawn
 const printedNow = () => { const ix = ui.ix ?? indexModel(work(), cur()); return new Set([...(sheet.doc?.querySelectorAll('[data-variant]') ?? [])].map(e => ix.factOfVariant.get(e.dataset.variant)).filter(Boolean)); };
-const careerView = initCareerView({ store, ui, work, lang, career, toast, download, printed: printedNow, openAt: (rid, sel) => jumpTo(rid, sel), renderBody: () => renderBody(),
+const careerView = initCareerView({ store, ui, work, lang, career, toast, download, printed: printedNow, savedAt: () => (persist.savedAt ? new Date(persist.savedAt) : null), openAt: (rid, sel) => jumpTo(rid, sel), renderBody: () => renderBody(),
   setLang: l => { ui.careerLang = l; renderBody(); }, record: { release: () => recordTab.release() } });
 const recordTab = initRecord({ ui, checklist, career, view: careerView, work, cur, lang, openName: () => resumeName(RS.savedOf(store.state, store.state.openId)), renderBody: () => renderBody(), setMode: m => dock.setMode(m) });
 window.__wb.record = recordTab;

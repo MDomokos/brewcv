@@ -55,7 +55,7 @@ function look(kind){
 // a kind's hue as a colour (for --hk), and its chip: the monochrome icon on the hue (24 px), for the Outline's section headings (checklist.js)
 export const kindHue = kind => `var(--hue-${look(kind).hue})`;
 const kc = kind => `style="--hk:${kindHue(kind)}"`;
-export const kindChip = kind => `<span class="si" aria-hidden="true">${icon(look(kind).icon, { role: 'header' })}</span>`;
+export const kindChip = (kind, role = 'header') => `<span class="si" aria-hidden="true">${icon(look(kind).icon, { role })}</span>`;
 const kindLabel = kind => (BUILT[kind] || ['work', 'education', 'project'].includes(kind) ? t(`career.kind.${kind}`) : K.kindName(rec(), kind, L()));
 
 const ym = d => String(d ?? '').slice(0, 7);

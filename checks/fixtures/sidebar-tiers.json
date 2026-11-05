@@ -211,6 +211,7 @@
   "side-fold button": "tertiary / panel"
  },
  "career inspector": {
+  "ddbtn button": "secondary / panel",
   "place button": "own .brand / panel",
   "sheet button": "own .wtab / tab",
   "export-place button": "secondary / panel",
@@ -239,7 +240,10 @@
   "sheet button": "own .wtab / tab",
   "export-place button": "secondary / panel",
   "lens button": "own .seg button / card",
-  "cv-lang button": "own .ce-side button:not(.ce-b) / panel",
+  "ddbtn button": "secondary / panel",
+  "cv-map button": "own .ce-side button:not(.ce-b) / panel",
+  "cv-filemenu button": "secondary / panel",
+  "cv-file button": "secondary / panel",
   "undo button": "tertiary / panel",
   "redo button": "tertiary / panel",
   "menu button": "tertiary / panel",

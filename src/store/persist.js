@@ -407,7 +407,7 @@ const fileStamp = iso => iso.replace(/:/g, '-').replace(/\.\d+Z$/, 'Z');
 // `locks`: navigator.locks. In a resume space (a folder from dataFolder()) one window is the writer; the others only read. `deviceName`: what this device's file is called.
 export function createPersist({ store, backend = memoryBackend(), folder = null, debounceMs = 400,
   now = () => new Date(), setTimer = setTimeout, clearTimer = clearTimeout, locks = null, deviceName = null } = {}){
-  let timer = null, waiters = [], status = 'idle', lastError = null, errorCode = null;
+  let timer = null, waiters = [], status = 'idle', lastError = null, errorCode = null, savedAt = null;
   let linked = folder;
   // A window that does not hold the writer lock writes nothing to the browser's storage: its saves, checkpoints and clocks stay in the window.
   const raw = backend;
@@ -475,7 +475,9 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       const state = store.state;
       // assets first, then the state that points at them, then the assets nothing points at any more
       const had = await putAssets(assetRefs(state));
-      await backend.put('state/current', { savedAt: now().toISOString(), state });
+      const at = now().toISOString();
+      await backend.put('state/current', { savedAt: at, state });
+      savedAt = at;
       try { await dropAssets(had); } catch { /* the assets are dropped at a later save; this one is done */ }
       if (state.record) try { await stamp(store.materialize()); } catch { /* the clock is made again at the next copy that leaves; the state is saved */ }
       if (pendingCommits){ file.n += pendingCommits; pendingCommits = 0; await backend.put('meta/fileDirty', file.n); }
@@ -578,6 +580,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
   }
 
   return {
+    get savedAt(){ return savedAt; },      // when the session was last written to this device's storage (ISO), or null
     get status(){ return { status, error: lastError, code: errorCode, linked: linked?.name ?? null, linkedPath: typeof linked?.handle === 'string' ? linked.handle : null }; },      // linkedPath: only the desktop app's folder is a path
     get fileState(){ return { last: file.last, changes: file.n + pendingCommits, recordId: store.state?.record?.recordId ?? null, hasClock: Object.keys(clock.keys).length > 0 }; },
     // this copy as a merge takes it: the state with its clock stamped now, and the clock it is merged into
@@ -640,6 +643,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
     async restore(){
       const saved = await backend.get('state/current');
       if (!saved?.state) return false;
+      savedAt = saved.savedAt ?? null;
       const refs = assetRefs(saved.state);
       const entries = [];
       for (const ref of refs){ const v = await backend.get(`asset/${ref}`); if (v !== undefined) entries.push([ref, v]); }

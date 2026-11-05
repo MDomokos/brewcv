@@ -56,7 +56,7 @@ function place(){
   const found = F.q.trim() ? careerHits(C.work(), F.q) : [];      // a word in a version the entry does not print now still finds the entry
   const entry = C.ui.ix?.work.get(R.sel), facts = entry ? C.career.detailsHtml(R.sel) : '';
   const opens = sel.querySelector('[data-act=cl-open]')?.dataset.sel;      // the entry's own heading opens it in the editor
-  bd.innerHTML = `<section class="insp insp-rec"><button type="button" class="ce-ctxback" data-act="rec-back">${h('cv.backToCareer')}</button><span class="lbl">${h('ux6h.entry')}</span>
+  bd.innerHTML = `<section class="insp insp-rec">${C.view.langSwitch()}<button type="button" class="ce-ctxback" data-act="rec-back">${h('cv.back')}</button><span class="lbl">${h('ux6h.entry')}</span>
     <h2 class="oi-name">${esc((sel.querySelector('.clname')?.textContent ?? '').trim().replace(/\s+/g, ' '))} <small class="muted">${esc((sel.querySelector('.clcount [aria-hidden]') ?? sel.querySelector('.clcount'))?.textContent ?? '')}</small></h2>
     ${opens ? `<button class="sm ghost insp-open" data-act="cl-open" data-sel="${esc(opens)}">${h('ux6h.openInEditor')}</button>` : ''}
     ${entry ? printsButton([...(entry.highlights ?? []), ...Object.values(entry.display ?? {})], (sel.querySelector('.clname')?.textContent ?? '').trim().replace(/\s+/g, ' '), { cls: 'insp-prints' }) : ''}
