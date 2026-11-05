@@ -79,6 +79,7 @@ function close(refocus = true){
   if (refocus) b.focus();
   open = null;
 }
+const SURFACE = ['--pop', '--surface', '--raised', '--ink', '--ink-soft', '--line', '--line-strong', '--input', '--hover', '--hover-strong', '--mark', '--mark-soft', '--on-mark', '--paper', '--paper-ink'];
 function place(){
   if (!open) return;
   const r = open.btn.getBoundingClientRect(), el = open.el;
@@ -95,6 +96,9 @@ function draw(){
   tmp.innerHTML = f.dataset.day ? dayMenuHtml(open.year, open.month, input.value, C().lang()) : menuHtml(open.year, input.value, !!f.dataset.present, C().lang());
   open.el = tmp.firstElementChild;
   (open.btn.closest('dialog') ?? document.body).append(open.el);
+  // the menu lives at the page's end but takes the colours of the surface its field sits on (Career's paper, the sidebar, a dialog)
+  const cs = getComputedStyle(open.btn);
+  for (const k of SURFACE) open.el.style.setProperty(k, cs.getPropertyValue(k));
   place();
 }
 function set(value){
@@ -153,7 +157,12 @@ export function initMonthPick(ctx){
     if (e.key === 'Tab' && !e.target.closest?.('#mp-menu') && !e.target.closest?.('.mpbtn')) close(false);
   }, true);
   globalThis.addEventListener?.('resize', () => close(false));
-  document.addEventListener('scroll', e => { if (open && !e.target.closest?.('#mp-menu')) close(false); }, true);
+  // a scroll (the page's own, or one that brought the field into view as it was clicked) moves the menu with its field; it closes once the field is out of sight
+  document.addEventListener('scroll', e => {
+    if (!open || e.target.closest?.('#mp-menu')) return;
+    const r = open.btn.getBoundingClientRect();
+    if (!open.btn.isConnected || r.bottom < 0 || r.top > innerHeight) close(false); else place();
+  }, true);
   return api;
 }
 const api = { close, get isOpen(){ return !!open; } };

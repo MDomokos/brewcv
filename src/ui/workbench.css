@@ -451,7 +451,7 @@ table.cmp tr.setting th { color: var(--ink); }
 .wirow { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 8px; width: 100%; padding: 7px 10px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; text-align: left; font-size: 12.5px; line-height: 1.4; cursor: pointer; }
 .wirow:hover { background: var(--hover); }
 .wirow .n { font-weight: 750; font-variant-numeric: tabular-nums; }
-.wirow.on { background: var(--hover); box-shadow: inset 3px 0 0 var(--accent); }
+.wirow.on { background: var(--hover); box-shadow: inset 0 0 0 1px var(--accent); }
 .wirow:disabled { opacity: .55; cursor: default; }
 .wirow .probably { font-weight: 650; font-size: 11.5px; background: var(--accent-soft); border-radius: var(--r-s); padding: 0 6px; }
 .wimatch + .btns { margin-top: 8px; }
@@ -662,7 +662,7 @@ body[data-phone=true] .foot { padding: 6px 12px; border-top: 1px solid var(--lin
 
 .toast { position: fixed; left: var(--toast-x, 50%); bottom: var(--toast-y, 60px); transform: translate(-50%, 12px); background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); box-shadow: var(--shadow-chip); padding: 9px 16px; border-radius: var(--r-m); font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .25s var(--ease), transform .25s var(--ease); z-index: 60; max-width: min(560px, calc(100vw - 32px)); }
 .toast.on { opacity: 1; transform: translate(-50%, 0); }
-.toast.bad { border-color: var(--bad); box-shadow: inset 4px 0 0 var(--bad), var(--shadow-chip); } .toast.warn { border-color: var(--warn); box-shadow: inset 4px 0 0 var(--warn), var(--shadow-chip); }
+.toast.bad { border: 2px solid var(--bad); } .toast.warn { border: 2px solid var(--warn); background: var(--warn-bg); }
 /* the Undo button of a toast (the Fit chip's look): the toast lets clicks through, the button does not */
 .toast .sm:is([data-act=toast-undo], [data-act=toast-act], [data-act=review-open]) { pointer-events: auto; margin-left: 10px; background: transparent; color: inherit; border: 1.5px solid currentColor; border-radius: var(--r-pill); padding: 2px 10px; font-weight: 700; cursor: pointer; }
 .toast .sm:is([data-act=toast-undo], [data-act=toast-act], [data-act=review-open]):hover { background: color-mix(in srgb, currentColor 14%, transparent); }
@@ -1140,10 +1140,10 @@ body[data-phone=true] .fitchip { top: 56px; left: 0; right: 0; margin-inline: au
 .clname:has(> .jtl), .jobname { display: flex; align-items: baseline; gap: .3em; }
 .jtl { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .org { flex: 1 1 0; min-width: 2.5em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-/* an open section is one container: its head is the container's header (stronger surface, an accent bar at the left edge, a rule under it), its
+/* an open section is one container: its head is the container's header (an accent-tinted surface, a rule under it; never a bar at the left edge), its
    contents sit inside under a connecting rule, and the next one stands apart from it. A closed section is a plain row with none of that. */
-.outline .osec.open { margin: 5px 0; background: var(--raised); border: 1px solid var(--line-strong); border-left: 4px solid var(--accent); border-radius: var(--r-m); }
-.outline .osec.open > .item.srow { background: color-mix(in srgb, var(--accent) 14%, var(--raised)); border-bottom: 1px solid var(--line-strong); border-radius: 0 calc(var(--r-m) - 1px) 0 0; padding: 3px 4px 3px 2px; }
+.outline .osec.open { margin: 5px 0; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-m); }
+.outline .osec.open > .item.srow { background: color-mix(in srgb, var(--accent) 14%, var(--raised)); border-bottom: 1px solid var(--line-strong); border-radius: calc(var(--r-m) - 1px) calc(var(--r-m) - 1px) 0 0; padding: 3px 4px 3px 2px; }
 .outline .osec.open > .item.srow.is-sel { background: var(--mark-soft); }
 .outline .osec.open > .obody { margin: 3px 6px 3px 12px; padding: 0 0 0 8px; border-left: 2px solid color-mix(in srgb, var(--accent) 55%, var(--line-strong)); }
 .outline .osec.open > .obody > :is(.clg, .item.ojob):last-child { border-bottom: 0; }
@@ -1545,3 +1545,7 @@ html[data-drink="coffee"] #mat { background-color: var(--canvas); background-ima
 /* nothing open: Content, Look (and a phone's tabs) wait; the name card says so, muted */
 .modes [role=tab][aria-disabled=true] { opacity: .45; cursor: default; }
 #head .docname.is-none { color: var(--muted); cursor: default; }
+
+/* Mark as read, beside a version's review tag: a text action */
+.vtags .vread { border: 0; background: transparent; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; box-shadow: none; }
+.vtags .vread:hover { color: var(--accent-ink, var(--ink)); }

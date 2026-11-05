@@ -13,6 +13,7 @@
 //   - the bar (the brand, Saved, undo, redo, the "?" and the fold) is in the same spot on all three places, within 1px; the brand goes home to
 //     Resumes; the "?" is the one menu (the drink and the theme, help and settings, the files); Content and Look from the Library open the
 //     resume the card names, and rest while several are ticked; folded, the way and the bar are two strips of one width at the window's edge,
+//   - switching places, a tab's word is shown whole or not at all, never cut (sampled every frame);
 //   - nothing in the way moves under the pointer; in Coffee every new part has a square corner and no soft shadow,
 //   - Export is a place of its own (the way keeps Content and Look): the page large on the left, a column half again as wide on the right,
 //     ← Back and Esc return to where it was opened from as it was; several resumes show their pages in a row, a ready line each, and their
@@ -99,10 +100,10 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
   await page.keyboard.press('Escape'); await settle(page);
   ok('the next Esc clears the ticks, and still stays in the Library', await view(page) === 'resumes' && (await page.$$('#scr .rtick:checked')).length === 0);
   await page.click('#ptabs [data-p=career]'); await settle(page);
-  await page.click('#c-add'); await settle(page);
-  ok('Career has its Add menu open', !!(await page.$('#scr .addmenu, #scr [role=menu]')));
+  await page.click('#ce-add'); await settle(page);
+  ok('Career has its Add menu open', !!(await page.$('#ce-pop [role=menu]')));
   await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc closes the open form of Career and stays in Career', await view(page) === 'record' && !(await page.$('#scr .addmenu, #scr [role=menu]')));
+  ok('Esc closes the open form of Career and stays in Career', await view(page) === 'record' && !(await page.$('#ce-pop')));
   await page.keyboard.press('Escape'); await settle(page);
   ok('…and the next Esc stays in Career too', await view(page) === 'record' && await cur(page) === 'Your career');
   await page.keyboard.press('e'); await settle(page);
@@ -230,6 +231,23 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
   await ctx.close();
 }
 
+// ---------------------------------------------------------------- a tab's word is whole or hidden while the tabs change, never cut
+{
+  const { ctx, page } = await open(1470, 832, { motion: true });
+  const watch = () => page.evaluate(() => new Promise(r => {
+    const bad = [], t0 = performance.now();
+    const f = () => {
+      for (const w of document.querySelectorAll('#ptabs .wtab .ww')){ const o = +getComputedStyle(w).opacity; if (o > 0.01 && w.scrollWidth > w.clientWidth) bad.push(`${w.textContent.trim()} ${w.scrollWidth}>${w.clientWidth} at ${Math.round(performance.now() - t0)}ms, opacity ${o.toFixed(2)}`); }
+      if (performance.now() - t0 < 1000) requestAnimationFrame(f); else r(bad);
+    };
+    requestAnimationFrame(f);
+  }));
+  const bad = [];
+  for (const sel of ['#ptabs [data-p=career]', '#ptabs [data-p=library]', '#ptabs [data-p=career]', '#tab-edit']){ const w = watch(); await page.click(sel); bad.push(...await w); }
+  ok('switching places, a tab\u2019s word is never shown cut: while it is visible it has its whole width (sampled every frame)', !bad.length, bad.slice(0, 4).join(' | '));
+  await ctx.close();
+}
+
 // ---------------------------------------------------------------- nothing in the way moves under the pointer; Coffee square and flat
 {
   const still = async (page) => {
@@ -267,10 +285,10 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
 {
   const { ctx, page } = await open(1470, 832);
   await page.keyboard.press('r'); await settle(page);
-  const st = () => page.evaluate(() => ({ lens: document.body.dataset.lens, frame: document.querySelector('#head').classList.contains('is-lens'), btns: [...document.querySelectorAll('#head .hlens [data-act=lens]')].map(b => b.dataset.v + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')).join(), off: [...document.querySelectorAll('#scr .tl2 [data-unpicked]')].map(r => r.dataset.id) }));
+  const st = () => page.evaluate(() => ({ lens: document.body.dataset.lens, frame: document.querySelector('#head').classList.contains('is-lens'), btns: [...document.querySelectorAll('#head .hlens [data-act=lens]')].map(b => b.dataset.v + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')).join(), off: [...document.querySelectorAll('#scr .ce-card.is-off')].map(r => r.dataset.ceCard) }));
   const a = await st();
   ok('Career with a resume open: the name card\'s row is Whole career | Its picks, Its picks on, the card framed in the accent', a.lens === 'picks' && a.frame && a.btns === 'whole,picks*', JSON.stringify(a));
-  const shown = await page.evaluate(() => { const w = window.__wb, d = document.querySelector('#sheet iframe').contentDocument, ix = w.ui.ix, p = new Set([...d.querySelectorAll('[data-variant]')].map(e => ix.factOfVariant.get(e.dataset.variant)).filter(Boolean)); return [...document.querySelectorAll('#scr .tl2 [data-id]')].map(r => { const x = (w.store.materialize(w.store.state.record)[r.dataset.key] ?? []).find(e => e.id === r.dataset.id); return [r.dataset.id, !!x && [...Object.values(x.display ?? {}), ...(x.highlights ?? [])].some(f => p.has(f))]; }); });
+  const shown = await page.evaluate(() => { const w = window.__wb, d = document.querySelector('#sheet iframe').contentDocument, ix = w.ui.ix, p = new Set([...d.querySelectorAll('[data-variant]')].map(e => ix.factOfVariant.get(e.dataset.variant)).filter(Boolean)); return [...document.querySelectorAll('#scr .ce-card[data-ce-card]')].map(r => { const x = (w.store.materialize(w.store.state.record)[r.dataset.key] ?? []).find(e => e.id === r.dataset.ceCard); return [r.dataset.ceCard, !!x && [...Object.values(x.display ?? {}), ...(x.highlights ?? [])].some(f => p.has(f))]; }); });
   ok('…the entries the resume does not print are dimmed in place, and only those (an education printed is not)', shown.length > 3 && shown.every(([id, on]) => a.off.includes(id) === !on) && shown.some(([, on]) => on) && a.off.length > 0, JSON.stringify({ shown, off: a.off }));
   await page.click('#head .hlens [data-v=whole]'); await settle(page);
   const b = await st();

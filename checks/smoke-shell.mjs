@@ -108,7 +108,7 @@ const importStep = page => page.evaluate(() => document.querySelector('#import[o
 const fillPaste = async (page, text) => { await page.evaluate(() => { document.querySelector('#import .ipaste').open = true; }); await page.fill('#imp-paste', text); };
 async function settle(page){
   const quiet = () => {       // true when quiet; else false, with the reason in window.__why (the page's CSP forbids evaluating a string)
-    const wb = window.__wb, finite = d => d.getAnimations().every(a => a.playState !== 'running' || a.effect.getComputedTiming().iterations === Infinity);
+    const wb = window.__wb, finite = d => d.getAnimations().every(a => a.playState !== 'running' || a.effect.getComputedTiming().iterations === Infinity || (globalThis.ScrollTimeline && a.timeline instanceof ScrollTimeline));      // one driven by a scroll (Career's top fade) is never over and never a motion
     const why = w => { window.__why = w; return !w; };
     if (document.fonts.status !== 'loaded') return why('fonts are loading');
     if (wb?.busy()) return why('a redraw is waiting or running');
@@ -197,7 +197,7 @@ async function toEditHome(page){ await page.evaluate(() => { window.__wb.ui.sel 
 // The first job selected: its lines are the movable rows
 async function toJobOutline(page){ await toEditHome(page); await page.click('#outline [data-act=select-section][data-id=experience]'); await settle(page); await page.locator('#body .jobname').first().click(); await settle(page); }      // from the Outline: the section, then the job by its name (a click on the page would write the title)
 // + Add lives in the Record tab's header
-async function openAdd(page){ await inRecord(page); await page.click('[data-act=c-pop]'); }
+async function openAdd(page){ await inRecord(page); await page.click('#ce-add'); }
 // Career: open it, and make a group the selected entry (in the inspector).
 async function inRecord(page, group = null){
   if ((await page.evaluate(() => window.__wb.ui.view)) !== 'record'){ await page.evaluate(() => window.__wb.dock.setMode('record')); await settle(page); }
@@ -424,6 +424,7 @@ if (want('one screen: a narrow window keeps the sidebar at its width; the keyboa
   const p2 = await ctx2.newPage();
   const bad2 = await open(p2);
   await p2.keyboard.press('r'); await settle(p2);
+  await p2.evaluate(() => window.__wb.record.open(['hydra'])); await settle(p2);      // an entry asked for, from the page's job chip
   for (let i = 0; i < 80 && !(await p2.evaluate(() => document.activeElement?.closest?.('#body .insp-rec'))); i++) await p2.keyboard.press('Tab');
   ok('Tab reaches the entry docked in Career\u2019s inspector, whose controls are plain buttons and checkboxes in tab order (tabs, place card, toolbar, cards and timeline come first)', await p2.evaluate(() => !!document.activeElement?.closest('#body .insp-rec')));
   for (let i = 0; i < 30 && !(await p2.evaluate(() => document.activeElement?.classList.contains('cb'))); i++) await p2.keyboard.press('Tab');
@@ -1412,11 +1413,10 @@ if (want('the record checklist: groups, ticks, the page and the timeline')) {
   const sheet = page.frameLocator('#sheet iframe');
   const st = () => page.evaluate(() => window.__wb.store.state);
   const bullets = () => frameDoc(page, d => d.querySelectorAll('.bullets li').length);
-  const all = () => page.textContent('#cl-all');
   await page.keyboard.press('r'); await settle(page);
-  ok('Career starts with “Your career”, with the whole career counted', /Your career/.test(await page.textContent('#checklist')) && /^\d+\/\d+\d+ of \d+ on$/.test((await all()).trim()));
-  const names = await page.$$eval('#scr .rectl .tl2 [data-grp]', rs => rs.map(r => r.dataset.grp));
-  ok('the entries on the timeline: the jobs newest first, projects and education beside them; About you, the lists and the skill words are the cards on top', names[0] === 'hydra' && names.indexOf('hydra') < names.indexOf('poly') && names.indexOf('poly') < names.indexOf('atelier') && names.includes('chassis-jig') && names.includes('education') && (await page.$$eval('#scr .recmore .srow', rs => rs.map(r => r.dataset.grp))).join() === 'about,credentials,~bank', names.join());
+  ok('Career starts with the whole career in one scroll: About you, the timeline, Skills & credentials', await page.evaluate(() => !!document.querySelector('#scr .ce-about') && !!document.querySelector('#scr .ce-tg') && document.querySelectorAll('#scr .ce-box').length >= 4));
+  const names = await page.$$eval('#scr .ce-card[data-ce-card]', rs => rs.map(r => r.dataset.ceCard));
+  ok('the entries on the timeline: the jobs newest first, projects and education beside them; About you above them, Skills & credentials as cards under them', names[0] === 'hydra' && names.indexOf('hydra') < names.indexOf('poly') && names.indexOf('poly') < names.indexOf('atelier') && names.includes('chassis-jig') && names.includes('porto-meng') && (await page.$$eval('#scr .ce-box', bs => bs.map(b => b.dataset.ceSec))).slice(0, 5).join() === 'skills,languages,certificates,publications,interests', names.join());
   await showGroup(page, 'hydra');
   ok('the selected entry is open in the inspector, its rows shown (the entry\u2019s fold is not offered)', (await page.$$('#body .clg.open')).length === 1 && (await page.$$('#body .clg[data-g=hydra] .clrow')).length === 7 && !(await page.$('#body .clg[data-g=hydra] .clcaret:visible')));
   ok('no hint above the list: what a tick does is shown once, by a line travelling to the page', !(await page.$('#checklist .clhint')) && await page.evaluate(() => localStorage.getItem('rb-cl-hint') === '1'));
@@ -1461,13 +1461,14 @@ if (want('the record checklist: groups, ticks, the page and the timeline')) {
 
   // the timeline, under the cards
   await page.evaluate(() => { document.querySelector('#scr').scrollTop = 0; });
-  ok('the timeline is under the cards: two columns, five jobs and three beside them', await page.isVisible('#checklist .rectl .tl2') && (await page.$$('#checklist .rectl .tl2 .main .row')).length === 5 && (await page.$$('#checklist .rectl .tl2 .side .srow')).length === 3 && !(await page.$('#timeline')));
-  const tl = await rect(page, '#checklist .rectl'), scr = await scrBox(page), col = await rect(page, '#col');
+  ok('the timeline is under About you: two lanes, five jobs and three beside them', await page.isVisible('#scr .ce-tg') && (await page.$$('#scr .ce-card.k1')).length === 5 && (await page.$$('#scr .ce-card.k2')).length === 3 && !(await page.$('#timeline')));
+  const tl = await rect(page, '#scr .ce-tg'), scr = await scrBox(page), col = await rect(page, '#col');
   ok('it is as wide as Career’s content: Career is drawn left of the sidebar (in #scr), 16px from the window’s edge (the sidebar’s gutter), and does not reach the sidebar', tl.left >= scr.left && tl.right <= scr.right + 1 && Math.abs(scr.left - 16) < 1 && scr.right < col.left && Math.abs(col.right - (await page.evaluate(async () => innerWidth - 16 - (await import('/src/ui/layout.js')).SIDE_EDGE))) < 1, `${tl.left}-${tl.right} vs ${scr.left}-${scr.right}`);
-  await page.click('#checklist .rectl .row:has-text("Prototyping Technician")'); await settle(page);
-  ok('an entry in it opens in the inspector, and the place stays', (await page.evaluate(() => window.__wb.ui.view)) === 'record' && !!(await page.$('#body .clg[data-g=poly]')) && await page.evaluate(() => document.querySelectorAll('#scr .rectl .is-sel').length) === 1);
-  await page.click('#checklist .rectl .srow:has-text("M.Eng.")'); await settle(page);
-  ok('the degree opens Education in the inspector', await page.evaluate(() => window.__wb.ui.view === 'record' && !!document.querySelector('#body .clg[data-g=education]')));
+  await page.click('#scr .ce-card[data-ce-card=poly] .ce-ch'); await settle(page);
+  ok('an entry in it opens its lines in place, and the place stays', (await page.evaluate(() => window.__wb.ui.view)) === 'record' && await page.evaluate(() => document.querySelectorAll('#scr .ce-card.is-open').length === 1 && !!document.querySelector('#scr .ce-card[data-ce-card=poly] .ce-lines')));
+  await page.hover('#scr .ce-card.k2:has-text("M.Eng.") .ce-ch'); await page.click('#scr .ce-card.k2:has-text("M.Eng.") [data-act=cv-details]'); await settle(page);
+  ok('the degree\u2019s pencil opens its fields in place', await page.evaluate(() => window.__wb.ui.view === 'record' && !![...document.querySelectorAll('#scr .ce-card .ce-det [data-form]')].some(f => f.dataset.key === 'education')));
+  await page.keyboard.press('Escape'); await settle(page);
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc stays in Career, and E goes back to the editor', (await page.evaluate(() => window.__wb.ui.view)) === 'record' && (await page.keyboard.press('e'), await settle(page), (await page.evaluate(() => window.__wb.ui.view)) === null));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
@@ -1582,12 +1583,12 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
     if (await p3.isVisible('[data-act=ob-finish]')) await p3.click('[data-act=ob-finish]'); await settle(p3);
     ok('Start editing brings the rest in: the header with Edit, Design and Export, and the Outline', await p3.isVisible('#head') && await p3.isVisible('#tab-edit') && /Saved on this device/.test(await p3.textContent('#body')));
     await openAdd(p3); await settle(p3);
-    ok('+ Add lists every kind: job, education, project, skills, languages, certificates, publications, interests, references, and “Something else”', ['work', 'education', 'project', 'skills', 'languages', 'certificates', 'publications', 'interests', 'references'].every(async k => true) && (await p3.$$('.addm [data-act=c-add]')).length >= 9 && await p3.isVisible('.addm [data-act=c-kind-new]'));
+    ok('+ Add lists every kind: job, education, project, skills, languages, certificates, publications, interests, references, and “Something else”', (await p3.evaluate(() => ['work', 'education', 'project', 'skills', 'languages', 'certificates', 'publications', 'interests', 'references'].every(k => !!document.querySelector(`#ce-pop .addm [data-act=cv-add][data-what=${k}]`)) && !!document.querySelector('#ce-pop [data-act=cv-kind-new]'))));
     await p3.click('.addm [data-what=work]'); await settle(p3);
-    ok('+ Add a job opens its form in the panel: title, employer, dates and the claims', await p3.isVisible('#c-claims') && /A new job/.test(await p3.textContent('#body .title')));
-    await p3.click('[data-act=c-add-cancel]'); await settle(p3);
+    ok('+ Add a job opens its card in Career: title, employer, dates and a first line', await p3.isVisible('#ce-addcard [data-ce-f=line]') && await p3.isVisible('#ce-f-start-b') && /New job|A new job/.test(await p3.textContent('#ce-addcard')));
+    await p3.click('#ce-addcard [data-act=cv-addcancel]'); await settle(p3);
     await openAdd(p3); await p3.click('.addm [data-what=education]'); await settle(p3);
-    ok('+ Add education opens the education form', await p3.isVisible('#c-org') && !(await p3.$('#c-claims')));
+    ok('+ Add education opens the education card, with no line', await p3.isVisible('#ce-addcard [data-ce-f=org]') && !(await p3.$('#ce-addcard [data-ce-f=line]')));
     await ctx3.close();
   }
   const ctx = await newContext({ viewport: { width: 1440, height: 960 } });
@@ -1599,16 +1600,20 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
   // a project
   await openAdd(page); await settle(page);
   await page.click('.addm [data-what=project]'); await settle(page);
-  await page.fill('#c-pos', 'Formula Student chassis jig'); await page.fill('#c-org', 'FEUP Formula Student team'); await pickMonth(page, 'c-start', '2019-10'); await pickMonth(page, 'c-end', '2020-06');
-  await pickOption(page, '#c-during', 'porto-meng');
-  await page.fill('#c-claims', 'Designed the welding jig for the team’s steel spaceframe chassis.\nIt held tolerance through two builds.');
-  await page.click('[data-act=c-create]'); await settle(page);
+  await page.fill('#ce-addcard [data-ce-f=pos]', 'Formula Student chassis jig'); await page.fill('#ce-addcard [data-ce-f=org]', 'FEUP Formula Student team'); await pickMonth(page, 'ce-f-start', '2019-10'); await pickMonth(page, 'ce-f-end', '2020-06');
+  await page.fill('#ce-addcard [data-ce-f=line]', 'Designed the welding jig for the team’s steel spaceframe chassis.');
+  await page.click('#ce-addcard [data-act=cv-addsave]'); await settle(page);
   let s = await st();
-  const pj = s.record.projects?.find(p => p.name === 'Formula Student chassis jig' && p.highlights?.length === 2);
-  ok('a project goes in the record, with its claims and “during”', pj?.during === 'porto-meng');
-  ok('it opens in Edit as a job does', (await page.getAttribute('#body', 'data-view')) === 'job' && (await page.getAttribute('#tab-edit', 'aria-selected')) === 'true');
-  await inRecord(page); await settle(page);
-  ok('it shows on the timeline beside the degree, saying so', /during Universidade do Porto/.test(await page.textContent('#checklist .rectl .tl2')));
+  let pj = s.record.projects?.find(p => p.name === 'Formula Student chassis jig' && p.highlights?.length === 1);
+  ok('a project goes in the record, with its first line', !!pj && !(await page.$('#ce-addcard')));
+  const jig = `#scr .ce-card[data-ce-card="${pj.id}"]`;
+  await page.click(`${jig} [data-act=cv-newline]`, { force: true }); await settle(page);
+  await page.fill('#ce-ta', 'It held tolerance through two builds.'); await page.click(`${jig} [data-act=cv-save][data-m=line]`); await settle(page);
+  await page.hover(`${jig} .ce-ch`); await page.click(`${jig} [data-act=cv-details]`); await settle(page);
+  await pickOption(page, '#c-during', 'porto-meng'); await settle(page);
+  s = await st(); pj = s.record.projects.find(p => p.id === pj.id);
+  ok('+ Line adds its second line, and its own fields say “during”', pj.highlights?.length === 2 && pj.during === 'porto-meng');
+  ok('it shows on the timeline beside the degree, saying so', /during Universidade do Porto/.test(await page.textContent(jig)));
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
   await toEditHome(page);
   ok('nothing on the open resume changes: its Projects section is off', (await frameDoc(page, d => d.body.textContent)) === before);
@@ -1626,13 +1631,12 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
 
   // a custom kind: Awards, from the preset
   await openAdd(page); await settle(page);
-  await page.click('.addm [data-act=c-kind-new]'); await settle(page);
-  await page.click('[data-act=c-kind-preset][data-p=awards]'); await settle(page);
-  await page.click('[data-act=c-kind-save]'); await settle(page);
-  ok('Awards, made from the preset, is a list kind', (await st()).record.kinds?.[0]?.store === 'awards' && (await st()).record.kinds[0].place === 'list');
-  ok('and the form for its first entry opens', await page.isVisible('#c-pos'));
-  await page.fill('#c-pos', 'Best student design'); await page.fill('#c-org', 'Example Society'); await pickMonth(page, 'c-start', '2020-11');
-  await page.click('[data-act=c-create]'); await settle(page);
+  await page.click('.addm [data-act=cv-kind-new]:not([data-p])'); await settle(page);
+  await page.click('#ce-kindcard [data-act=cv-kpreset][data-p=awards]'); await settle(page);
+  ok('the kind\u2019s card asks for its first entry too, in Career', await page.isVisible('#ce-kindcard [data-ce-e=pos]') && (await page.evaluate(() => window.__wb.ui.view)) === 'record');
+  await page.fill('#ce-kindcard [data-ce-e=pos]', 'Best student design'); await page.fill('#ce-kindcard [data-ce-e=org]', 'Example Society'); await pickMonth(page, 'ce-ke-start', '2020-11');
+  await page.click('#ce-kindcard [data-act=cv-kcreate]'); await settle(page);
+  ok('Awards, made from the preset in Career, is a list kind', (await st()).record.kinds?.[0]?.store === 'awards' && (await st()).record.kinds[0].place === 'list');
   ok('the entry is a JSON Resume award', (await st()).record.awards?.[0]?.title === 'Best student design');
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
   await inRecord(page, 'awards');
@@ -1641,17 +1645,16 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
   await page.click('#seclist .srow[data-sid=awards] .swl'); await settle(page);
   ok('put on a resume, it prints as a run line', (await frameDoc(page, d => d.body.textContent)).includes('Best student design · Example Society · 2020'));
   // another list kind, then delete Awards moving its entry there
-  await openAdd(page); await settle(page); await page.click('.addm [data-act=c-kind-new]'); await settle(page);
-  await page.fill('#kn-name', 'Exhibitions'); await page.check('[data-kplace=list]'); await settle(page);
-  await page.click('[data-act=c-kind-save]'); await settle(page);
-  await page.click('[data-act=c-add-cancel]').catch(() => {}); await settle(page);
+  await openAdd(page); await settle(page); await page.click('.addm [data-act=cv-kind-new]:not([data-p])'); await settle(page);
+  await page.fill('#ce-kindcard [data-ce-k=name]', 'Exhibitions'); await page.check('#ce-kindcard [name=ce-kplace][value=list]'); await settle(page);
+  await page.fill('#ce-kindcard [data-ce-e=pos]', 'Material Matters'); await page.click('#ce-kindcard [data-act=cv-kcreate]'); await settle(page);
   await openAdd(page); await settle(page);
   await page.click('.addm .kset[data-id="awards"]'); await settle(page);
-  ok('an existing kind’s editor has no Save button: its colour and icon change at once', !(await page.$('[data-act=c-kind-save]')) && await page.isVisible('[data-act=c-kind-colour]'));
-  await page.click('[data-act=c-kind-colour][data-i="1"]'); await settle(page);
+  ok('an existing kind’s editor has no Create button: its colour and icon change at once', !(await page.$('#ce-kindcard [data-act=cv-kcreate]')) && await page.isVisible('#ce-kindcard [data-act=cv-kcolour]'));
+  await page.click('#ce-kindcard [data-act=cv-kcolour][data-i="1"]'); await settle(page);
   ok('…', (await st()).record.kinds.find(k => k.store === 'awards').colour === 1);
-  await page.click('[data-act=c-kind-del]'); await settle(page);
-  await page.click('[data-act=c-kind-del-move]'); await settle(page);
+  await page.click('#ce-kindcard [data-act=cv-kdel]'); await settle(page);
+  await page.click('#ce-kindcard [data-act=cv-kdelmove]'); await settle(page);
   s = await st();
   ok('deleting Awards moved its entry to Exhibitions', !s.record.kinds.some(k => k.store === 'awards') && s.record.projects?.some(p => p.name === 'Best student design' && p.type === 'exhibitions'), JSON.stringify(s.record.projects));
   await page.keyboard.press('Control+z'); await settle(page);
@@ -1659,15 +1662,15 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
 
   // a reference
   await openAdd(page); await settle(page);
-  ok('+ Add offers a Reference', await page.isVisible('.addm [data-act=c-add][data-what=references]'));
-  await page.click('.addm [data-act=c-add][data-what=references]'); await settle(page);
-  await page.fill('#c-rname', 'Ana Exemplo'); await page.fill('#c-rtext', 'Dana fixed our dose counter in a week.');
-  await page.click('[data-act=c-create]'); await settle(page);
+  ok('+ Add offers a Reference', await page.isVisible('.addm [data-act=cv-add][data-what=references]'));
+  await page.click('.addm [data-act=cv-add][data-what=references]'); await settle(page);
+  await page.fill('.ce-inl [data-ce-inlin=name]', 'Ana Exemplo'); await page.fill('.ce-inl [data-ce-inlin=text]', 'Dana fixed our dose counter in a week.');
+  await page.click('.ce-inl [data-act=cv-inlsave]'); await settle(page);
   s = await st();
   ok('it is a JSON Resume reference with a text behind it', s.record.references?.[0]?.name === 'Ana Exemplo' && s.record.facts.some(f => f.id === s.record.references[0].id));
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
-  await inRecord(page, 'credentials');
-  await showGroup(page, 'credentials'); ok('it shows under References in Skills and credentials', /Ana Exemplo/.test(await page.textContent('#body .clg[data-g=credentials]')));
+  await inRecord(page);
+  ok('it shows in its References card in Skills & credentials', /Ana Exemplo/.test(await page.textContent('#scr .ce-box[data-ce-sec=references]')));
   ok('the resume does not print it yet', !(await frameDoc(page, d => d.body.textContent)).includes('Ana Exemplo'));
   await toEditHome(page);
   await page.click('#seclist .srow[data-sid=references] .swl'); await settle(page);
@@ -1688,8 +1691,9 @@ if (want('Career: the skill words, Find or add with its warning, moving words an
   const chipAt = id => mid(`#body .cwbtray [data-drag=w][data-id="${id}"]`);
   const carry = async (from, to) => { await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(from.x + 8, from.y + 3, { steps: 3 }); await page.mouse.move(to.x, to.y, { steps: 10 }); await page.mouse.up(); await settle(page); };
   await inRecord(page);
-  const card = await page.$('#scr .recmore [data-grp="~bank"]');
-  ok('Career has a card for the skill words, after About you and Skills and credentials', !!card && (await page.$$eval('#scr .recmore .srow', rs => rs.map(r => r.dataset.grp))).join() === 'about,credentials,~bank');
+  await page.hover('#scr .ce-box[data-ce-sec=skills] h3'); await page.click('#scr .ce-box[data-ce-sec=skills] [data-act=cv-secedit]'); await settle(page);
+  const card = await page.$('#scr .ce-box[data-ce-sec=skills] [data-act=rec-job][data-grp="~bank"]');
+  ok('the Skills card, being edited, has the way to every skill word (the bank)', !!card);
   if (card){
     await card.click(); await settle(page);
     ok('…which docks the bank in the inspector: Find or add, then every word as a chip in the bank\'s order (none on a shelf yet)', await page.isVisible('#body .cwbbank #cb-q') && JSON.stringify((await tray())[0][1]) === JSON.stringify((await bank()).words.map(w => w.id)));
@@ -1758,7 +1762,7 @@ if (want('Career: the skill words, Find or add with its warning, moving words an
     await carry(await mid('#body .cwbgroups .skname:has-text("Software")'), { x: cad.b.x + 3, y: cad.y });
     ok('a group dragged by its name before another moves in the record, so the skills section lists it first', await page.evaluate(async () => { const T = await import('/src/model/resume.js'), m = window.__wb.store.state.record; return m.skills[0].id === 'skills-software' && T.itemsOf(m, 'skills')[0] === 'skills-software'; }));
     // deleting a word from Career: the saved resumes that print it first, then Undo
-    await inRecord(page); await page.click('#scr .recmore [data-grp="~bank"]'); await settle(page);
+    await inRecord(page); await page.evaluate(() => window.__wb.record.open(['~bank'])); await settle(page);
     const uses = await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'), s = window.__wb.store.state; return RS.wordUses(s, 'sw-excel').map(r => RS.resumeLabel(r)); });
     await page.click('#body .cwbtray [data-drag=w][data-id="sw-excel"]'); await settle(page);
     await page.click('#body .cwbbank [data-act=c-bk-delw]'); await settle(page);
@@ -1790,7 +1794,7 @@ if (want('Career: the skill words, Find or add with its warning, moving words an
       const look = sel => p.evaluate(s => { const e = document.querySelector(s); if (!e) return null; const c = getComputedStyle(e); return { bg: c.backgroundColor, inset: c.boxShadow.replace(/rgba?\([^)]*\)|color\([^)]*\)/g, 'c'), card: c.getPropertyValue('--surface').trim() }; }, sel);
       await toEditHome(p); await p.click('#outline [data-act=select-section][data-id=skills]'); await settle(p);
       const editor = await look('#bankcard .wbtray');
-      await inRecord(p); await p.click('#scr .recmore [data-grp="~bank"]'); await settle(p);
+      await inRecord(p); await p.evaluate(() => window.__wb.record.open(['~bank'])); await settle(p);
       const words = await look('#body .cwbtray');
       await inRecord(p, 'credentials'); await p.click('#body .clg[data-g=credentials] .clrow[data-item=skills-cad] .clt'); await settle(p);
       wells.push({ drink, theme, editor, words, group: await look('#body .cwbkwell'), bad: bad2.length });
@@ -3507,9 +3511,9 @@ if (want('onboarding and the record')) {
   await page.click('[data-act=tip-skip]'); await settle(page);
 
   await inRecord(page); await settle(page);
-  ok('Record: the claims are already in it', (await page.$$('#checklist .clg')).length >= 4 && /Fjord Instruments/.test(await page.textContent('#checklist')));
-  ok('the timeline shows the two jobs on the left, the degree beside them', await page.isVisible('#checklist .rectl .tl2') && (await page.$$('#checklist .rectl .tl2 .row')).length === 2 && (await page.$$('#checklist .rectl .tl2 .srow')).length === 1);
-  await page.click('#scr .rectl .row:has-text("Northwind")'); await settle(page);
+  ok('Career: the claims are already in it', (await page.$$('#scr .ce-card')).length >= 3 && /Fjord Instruments/.test(await page.textContent('#scr .ce-doc')));
+  ok('the timeline shows the two jobs on the left, the degree beside them', await page.isVisible('#scr .ce-tg') && (await page.$$('#scr .ce-card.k1')).length === 2 && (await page.$$('#scr .ce-card.k2')).length === 1);
+  await page.evaluate(() => window.__wb.record.open([window.__wb.store.state.record.work.find(w => w.name === 'Northwind Labs').id])); await settle(page);
   await page.click('#body .insp-open[data-sel*="job"]'); await settle(page);
   await page.click('details.details > summary'); await settle(page);
   await page.fill('#c-pos', 'Design Engineering Intern'); await pickMonth(page, 'c-end', '2022-01'); await settle(page);
@@ -4299,9 +4303,9 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     ok(`${tag}: the sidebar keeps 24px from the right (the gutter and 8px for the card's stacked sheets)`, Math.abs(1440 - after.right - 24) < 1);
 
     // ---- what Record shows ----
-    ok(`${tag}: a toolbar: the search, n/m (n of m on to a screen reader), + Add; the sidebar’s card names the open resume, with Export as its stub`, await page.evaluate(() => { const h = document.querySelector('#checklist .clhead'); return !!h && !!h.querySelector('#rec-q') && /\d+ of \d+ on/.test(h.textContent) && !!h.querySelector('[data-act=c-pop]') && !document.querySelector('#head .htagl') && !!document.querySelector('#head .hstub'); }));
-    ok(`${tag}: the timeline is as wide as Career, under the cards on top, and runs down: the newest year first`, await page.evaluate(() => { const t = document.querySelector('#checklist .rectl .tl2'); const b = document.querySelector('#scr'); const y = [...t.querySelectorAll('.yr')].map(e => e.getBoundingClientRect().top); return !!t && t.getBoundingClientRect().width > b.getBoundingClientRect().width * 0.5 && y.length >= 4 && y.every((v, i) => !i || y[i - 1] < v) && !document.querySelector('#timeline') && document.querySelector('#scr .recmore').getBoundingClientRect().bottom <= t.getBoundingClientRect().top + 30; }));
-    ok(`${tag}: the cards are About you, Skills and credentials, and Skill words, and the entry in the inspector is the newest job, its lines shown`, await page.evaluate(() => [...document.querySelectorAll('#scr .recmore .srow')].map(r => r.dataset.grp).join() === 'about,credentials,~bank' && document.querySelector('#body .insp-rec .clg[data-g=hydra] .clrow') !== null));
+    ok(`${tag}: a toolbar: the search, Expand all and + Add; the sidebar’s card names the open resume, with Export as its stub`, await page.evaluate(() => { const h = document.querySelector('#scr .ce-bar'); return !!h && !!h.querySelector('#rec-q') && !!h.querySelector('#ce-add') && !!h.querySelector('[data-act=cv-all]') && !document.querySelector('#head .htagl') && !!document.querySelector('#head .hstub'); }));
+    ok(`${tag}: the timeline is as wide as Career, under About you, and runs down: the newest year first`, await page.evaluate(() => { const t = document.querySelector('#scr .ce-tg'); const b = document.querySelector('#scr'); const y = [...t.querySelectorAll('.ce-yr')].map(e => e.getBoundingClientRect().top); return t.getBoundingClientRect().width > b.clientWidth * 0.4 && y.length >= 4 && y.every((v, i) => !i || y[i - 1] < v) && !document.querySelector('#timeline') && document.querySelector('#scr .ce-about').getBoundingClientRect().bottom <= t.getBoundingClientRect().top; }));
+    ok(`${tag}: the sidebar is the language switch over the map of the career; an entry asked for docks in the inspector, its lines shown`, await page.evaluate(() => !!document.querySelector('#body .ce-side > .ce-lsw') && document.querySelectorAll('#body .ce-map .mprow').length > 5) && (await page.evaluate(() => window.__wb.record.open(['hydra'])), await settle(page), await page.evaluate(() => !!document.querySelector('#body .insp-rec .clg[data-g=hydra] .clrow'))));
     await page.locator('#body .cb[data-on]').first().click(); await settle(page);
     ok(`${tag}: a re-render of Career keeps the entry in the inspector`, await page.evaluate(() => !!document.querySelector('#body .insp-rec .clg[data-g=hydra]')));
     await page.locator('#body .cb[data-on]').first().click(); await settle(page);
@@ -4321,7 +4325,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
       // unticked row in place, and the next tick would land on the same line (two steps, not three). The ticks follow at the speed of the app.
       const t0 = Date.now();
       for (let i = 0; i < 3; i++){
-        await page.locator('#body .clrow.is-off .cb[data-on]').first().check();
+        const id = await page.locator('#body .clrow.is-off .cb[data-on]').first().getAttribute('data-on'); await page.check(`#body .cb[data-on="${id}"]`);      // by its line: a redraw between the click and the check's own look must not tick the next one
         await page.waitForFunction(n => document.querySelector('#sheet iframe').contentDocument.querySelectorAll('.bullets li').length === n, n0 + i + 1, { timeout: 20000, polling: 50 }).catch(() => {});
       }
       await settle(page);
@@ -4351,8 +4355,8 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await page.click('#body .allrec [data-act=open-record]'); await settle(page);
     const at = await page.evaluate(() => ({ view: window.__wb.ui.view, sel: !!document.querySelector('#body .insp-rec .clg[data-g=hydra]') }));
     ok(`${tag}: “All of Career” opens Career with that job docked in the inspector`, at.view === 'record' && at.sel, JSON.stringify(at));
-    await page.click('#checklist .rectl [data-act=rec-job][data-id=atelier]'); await settle(page);
-    ok(`${tag}: a click on a job in the timeline docks it in the inspector`, await page.evaluate(() => !!document.querySelector('#body .insp-rec .clg[data-g=atelier]') && document.querySelectorAll('#scr .rectl .is-sel').length === 1));
+    await page.evaluate(() => window.__wb.record.open(['atelier'])); await settle(page);
+    ok(`${tag}: another job asked for takes its place in the inspector`, await page.evaluate(() => !!document.querySelector('#body .insp-rec .clg[data-g=atelier]')));
     // a click on a row's text opens the claim in Edit
     await showGroup(page, 'atelier'); await page.click('#body .clg[data-g=atelier] .clt'); await settle(page);
     ok(`${tag}: a click on a line's text opens the claim (Edit), and the panel is at its top`, (await page.evaluate(() => window.__wb.ui.view)) === null && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'bullet' && (await page.evaluate(() => document.querySelector('#body').scrollTop)) === 0);
@@ -4488,7 +4492,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await page.keyboard.press('r'); await settle(page);
     const c = await rect(page, '#col'), s = await rect(page, '#sheet'), sc = await scrBox(page);
     ok('1024: Career is drawn left of the sidebar, which keeps its place and width, and the page has not moved', Math.abs(c.width - c0.width) < 1 && Math.abs(c.left - c0.left) < 1 && Math.abs(s.left - s0.left) < 1 && sc.right < c.left && sc.width > 300, `${c.width} at ${c.left}, Career ${sc.width}`);
-    ok('…and the timeline and the groups are there', await page.evaluate(() => !!document.querySelector('#checklist .rectl .tl2') && document.querySelectorAll('#checklist .clg.open').length >= 5));
+    ok('…and About you, the timeline and the cards are there', await page.evaluate(() => !!document.querySelector('#scr .ce-about') && document.querySelectorAll('#scr .ce-card').length >= 8 && document.querySelectorAll('#scr .ce-box').length >= 4));
     await ctx.close();
     const cp = await newContext({ motion: true, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const ph = await cp.newPage();
@@ -4677,8 +4681,8 @@ if (want('deployed: a subpath, offline, a phone, names')) {
   await openAdd(p2); await settle(p2);
   views.push(...(await unnamed()).map(x => `add menu: ${x}`));
   await openAdd(p2); await settle(p2);
-  await p2.click('#checklist .rectl .row >> nth=1'); await settle(p2);
-  views.push(...(await unnamed()).map(x => `checklist: ${x}`));
+  await p2.click('#scr .ce-card >> nth=1 >> .ce-ch'); await settle(p2);
+  views.push(...(await unnamed()).map(x => `career: ${x}`));
   await p2.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(p2);
   views.push(...(await unnamed()).map(x => `bullet: ${x}`));
   await p2.keyboard.press('Escape'); await p2.keyboard.press('Escape'); await settle(p2);
@@ -4783,14 +4787,6 @@ if (want('motion: the twelve moments play, are off under reduced motion, and lea
     await page.mouse.move(4, 4);
     await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
     await page.evaluate(() => window.__wb.dock.setMode('outline')); await settle(page);
-    // a tick in the Record tab: the line travels (and the first time, one line makes the trip on its own)
-    await page.evaluate(() => localStorage.removeItem('rb-cl-hint'));
-    await page.keyboard.press('r'); await page.waitForTimeout(900);
-    got.sample = await names(); await clear();
-    await page.locator('#body .cb[data-on]:checked').first().click(); await page.waitForTimeout(300);
-    got.untick = await names(); await clear();
-    await page.locator('#body .cb[data-on]:not(:checked)').first().click(); await page.waitForTimeout(700);
-    got.tick = await names(); docs.ticked = await doc();
     // another resume: the page crossfades, the name slides
     await page.keyboard.press('e'); await clear();
     const ids = await page.evaluate(() => window.__wb.store.state.resumes.map(r => r.id));
@@ -4834,7 +4830,6 @@ if (want('motion: the twelve moments play, are off under reduced motion, and lea
   ok('with motion: Fit crossfades the swapped lines, folds the dropped ones, fills the meter, and leaves a chip with Undo', has(A.got.fit, 'fit:', 'chip:in') && /·|shorter|left out|swapped/.test(A.got.chip ?? '') || A.got.chip === null && has(A.got.fit, 'fit:'), JSON.stringify([A.got.fit, A.got.chip]));
   ok('…the chip says what Fit did in the interface language’s words, never a key', !/^ux4\./.test(A.got.chip ?? ''), A.got.chip ?? '');
   ok('…Ctrl+Z while Fit is still moving takes it back at once, nothing queues', A.got.undoAtOnce && A.got.chipGone);
-  ok('with motion: the first time, one line of the record makes the trip to the page; each tick after it travels', has(A.got.sample, 'tick:sample') && has(A.got.untick, 'tick:') && has(A.got.tick, 'tick:'), JSON.stringify([A.got.sample, A.got.untick, A.got.tick]));
   ok('with motion: another resume crossfades the page and slides its name', has(A.got.switch, 'switch:name') && (has(A.got.switch, 'switch:out') || has(A.got.switch, 'switch:frame')), A.got.switch.join());
   ok('with motion: a snapshot drops a small page into the name, and "Sent to" appears under it', has(A.got.snapshot, 'snapshot:drop', 'snapshot:line') && /Acme Corp/.test(A.got.sent ?? ''), JSON.stringify([A.got.snapshot, A.got.sent]));
   ok('with motion: hovering Coffee in the "?" menu starts the mat rolling up', A.got.peek.layer && A.got.peek.to === 'coffee' && A.got.peek.drink === 'tea', JSON.stringify(A.got.peek));
@@ -7672,18 +7667,19 @@ if (want('native controls: every select, date and colour is the app’s own')) f
   const seen = {};
   for (const v of ['new', 'sent', 'settings', 'design', 'export', 'resumes']){ await page.evaluate(v => window.__wb.setView(v), v); await settle(page); const n = await native(); seen[v] = n; }
   await page.evaluate(() => window.__wb.dock.setMode('record')); await settle(page);
-  await page.click('[data-act=c-pop]'); await settle(page); await page.click('.addm [data-what=project]'); await settle(page);
+  await page.hover('#scr .ce-card[data-ce-card=chassis-jig] .ce-ch'); await page.click('#scr .ce-card[data-ce-card=chassis-jig] [data-act=cv-details]'); await settle(page);
   seen.project = await native();
-  ok(`${tag}: no native date, month, colour or datalist control on the new-project form, Mark as sent, Settings, Design, Export or the Library, and every select there is hidden behind its button`, Object.values(seen).every(n => n.native === 0 && n.bare === 0) && seen.project.selects >= 1 && seen.new.selects >= 2, JSON.stringify(seen));
+  ok(`${tag}: no native date, month, colour or datalist control on a project's own fields, Mark as sent, Settings, Design, Export or the Library, and every select there is hidden behind its button`, Object.values(seen).every(n => n.native === 0 && n.bare === 0) && seen.project.selects >= 1 && seen.new.selects >= 2, JSON.stringify(seen));
+  await page.locator('.ddbtn[data-ddf=c-during]').scrollIntoViewIfNeeded(); await settle(page);      // a scroll closes the list: in view first
   await page.click('.ddbtn[data-ddf=c-during]'); await settle(page);
-  ok(`${tag}: the new-project form's “Done during” is the app's list too`, await page.evaluate(() => !!document.querySelector('.ddpop [role=option]') && getComputedStyle(document.querySelector('.ddpop')).position === 'fixed'));
+  ok(`${tag}: a project's “Done during” is the app's list too`, await page.evaluate(() => !!document.querySelector('.ddpop [role=option]') && getComputedStyle(document.querySelector('.ddpop')).position === 'fixed'));
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
   // the date a resume was sent: the app's day picker
   await page.evaluate(() => window.__wb.dock.setMode('export')); await settle(page);
   await page.click('[data-act=mark-sent]'); await settle(page);
   await page.click('#sv-date-b'); await settle(page);
   const day = await page.evaluate(() => { const e = document.querySelector('#mp-menu'); return { dow: e?.querySelectorAll('.mpdow span').length, days: e?.querySelectorAll('.mpdays [data-act=mp-pick]').length, sel: e?.querySelectorAll('[aria-pressed=true]').length, title: e?.querySelector('.mpyear output')?.textContent, bg: e && getComputedStyle(e).backgroundColor, tier: [...new Set([...e.querySelectorAll('.mpdays [data-act=mp-pick]')].map(x => x.dataset.tier))].join() }; });
-  ok(`${tag}: Mark as sent has a day picker in the app's own menu: weekdays, the month's days (the sent date pressed), tertiary presses, in the pop-up colours`, day.dow === 7 && day.days >= 28 && day.sel === 1 && day.tier === 'tertiary' && day.bg === await token('--pop', 'backgroundColor', '#mp-menu'), JSON.stringify(day));
+  ok(`${tag}: Mark as sent has a day picker in the app's own menu: weekdays, the month's days (the sent date pressed), tertiary presses, in the pop-up colours of the panel it opens from`, day.dow === 7 && day.days >= 28 && day.sel === 1 && day.tier === 'tertiary' && day.bg === await token('--pop', 'backgroundColor', '#sv-date-b'), JSON.stringify(day));      // the colours of the surface its field sits on
   await page.click('#mp-menu [data-act=mp-month][data-d="-1"]'); await settle(page);
   const prev = await page.textContent('#mp-menu .mpyear output');
   await page.click('#mp-menu .mpdays [data-v$="-15"]'); await settle(page);
@@ -8028,7 +8024,7 @@ if (want('close the open resume')) {
   ok('the E key (the editor place) stays in the Resumes place', (await st(page)).view === 'resumes');
   await page.click('#ptabs [data-p=career]'); await settle(page);
   const c = await st(page);
-  ok('Career shows the whole career, with no lens row', c.view === 'record' && !c.lens && (await page.evaluate(() => document.body.dataset.lens)) === '' && /No resume open/.test(c.head));
+  ok('Career shows the whole career, with no lens row', c.view === 'record' && !c.lens && (await page.evaluate(() => document.body.dataset.lens)) === '' && /career\.json/.test(c.head));
   await page.waitForFunction(() => /Saved/.test(document.querySelector('#savestate')?.textContent ?? ''), null, { timeout: 5000 });
   await settle(page);
   await page.reload({ waitUntil: 'networkidle' });

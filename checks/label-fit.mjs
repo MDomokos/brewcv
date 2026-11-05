@@ -112,7 +112,7 @@ for (const lang of I.UI_LANGS){
     // Record, Export's Mark as sent, and the job level
     await pg.keyboard.press('r'); await pg.waitForTimeout(700);
     problems.push(...await probe('the way in Career', '#ptabs .wtab.is-on, #ptabs .wtab.is-on .ww, #head .hlens button'));
-    problems.push(...await probe('record', '#checklist .clhead *, #checklist .clcount, #checklist .clcaret, #checklist .nlink, #checklist .rectl .kw, #checklist .addline'));
+    problems.push(...await probe('record', '#scr .ce-bar button, #scr .ce-bh, #scr .ce-lh, #scr .ce-box h3 > :not(.ce-hadd), #scr .ce-sum, #body .ce-side h3, #body .ce-lsw button, #body .ce-map .oh, #body .ce-file button'));
     await pg.keyboard.press('e'); await pg.waitForTimeout(500);      // E: Career is a place of its own, and Esc stays in it: back to the editor
     await pg.evaluate(() => window.__wb.export.open()); await pg.waitForTimeout(400);
     problems.push(...await probe('export', '#body .xptop *, #body .xph, #body .seg button, #body .dl button, #fileline, #filestate'));

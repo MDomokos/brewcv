@@ -179,7 +179,7 @@ if (want('del')){
     const DV = {
       line: async () => { await VIEWS.line(page); await page.hover('#body .vrow:not(.cur)'); },
       'name window': () => nameWin(page), 'row menu': () => VIEWS['row menu'](page), menu: () => VIEWS.menu(page),
-      'skill group': () => VIEWS['skill group'](page), career: async () => { await page.evaluate(() => window.__wb.setView('record')); await page.waitForTimeout(400); await page.evaluate(() => [...document.querySelectorAll('#scr [data-act=rec-job]')].find(b => b.dataset.key && b.dataset.key !== 'work')?.click()); },
+      'skill group': () => VIEWS['skill group'](page), career: async () => { await page.evaluate(() => window.__wb.setView('record')); await page.waitForTimeout(400); await page.evaluate(() => window.__wb.record.open(['caliper-stand'])); },
       'a line on this resume only': async () => { await page.evaluate(async () => { const T = await import('/src/model/resume.js'); const job = window.__wb.store.state.record.work[0].id; let id; window.__wb.store.commit(d => { id = T.addLocalLine(d.record, d.cur, job); d.cur.overrides[id] = 'A line for this resume only'; }, 'check: local line'); window.__wb.ui.sel = { kind: 'bullet', id, job }; window.__wb.setView(null); }); },
     };
     let n = 0;
@@ -241,7 +241,7 @@ if (want('order')){
     'sent copy': async () => { await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); let sid; window.__wb.store.commit(d => { sid = RS.takeSnapshot(d, { kind: 'company', company: 'Order Co', role: 'Tester', date: '2026-10-22' })?.snap?.id; }, 'check: sent'); const s = window.__wb.store.state, r = s.resumes.find(x => x.id === s.openId); window.__wb.resumes.openSnapshot(r.id, (r.snapshots ?? []).at(-1).id); }); },
     'a question': async () => { await VIEWS.line(page); await page.click('#body .ctop .cmore'); await page.click('#body .ctop .cmenu [data-act=delete-claim]'); },
     merge: async () => { await page.click('#rail [data-act=menu]'); await page.click('.appmenu [data-v=import]'); await page.waitForTimeout(300); await page.setInputFiles('#file', path.join(ROOT, 'checks/fixtures/jsonresume-sample.json')); await page.waitForTimeout(800); await page.click('[data-act=imp-merge]'); },
-    'career add': async () => { await page.evaluate(() => window.__wb.setView('record')); await page.waitForTimeout(400); await page.click('[data-act=c-pop]'); await page.click('[data-act=c-add][data-what=project]'); },
+    'career add': async () => { await page.evaluate(() => window.__wb.setView('record')); await page.waitForTimeout(400); await page.click('#ce-add'); await page.click('#ce-pop [data-act=cv-add][data-what=project]'); },
   };
   const found = new Map();
   const read = () => page.evaluate(([pairs, cancels]) => {

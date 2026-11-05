@@ -1,10 +1,33 @@
 # Changelog
 
-## 1.9.3 - 2026-11-04
+## Unreleased
 
 ### Changed
 - **A new name card and name window:** the card shows the position, workplace and language; the window rolls down from it with the name, a warning to duplicate before renaming for a new job, this resume's languages with a paper each, and the other resumes.
 - **A resume keeps the same lines in every language:** switching language prints each line at the same version number, a version can be chosen for one language only and brought back in line, and a small language tag shows which version each other language uses.
+- **Career shows your whole career in one scroll:** About you, the timeline and Skills & credentials, each edited right where it is, one editor at a time.
+- **Career reads in a language of its own, and its sidebar maps your career in it:** a mark per text, written, to write or to review; a name opens its card, a mark that text's editor.
+- **In Career the name card is your career file:** Export downloads career.json or a JSON Resume, or copies it as text for an AI chat.
+- **The mat scrolls with Career** exactly, behind the sidebar too, and the top and foot of the scroll fade.
+- **Esc, Cmd+. and the mouse's back button close Career's menus, then what is open;** only Esc drops an unsaved edit.
+- **Selections are marked with a ring or a tint,** never a coloured bar on a box's left edge.
+- **Your own kinds are made and changed in Career,** from a preset or from scratch; + Add offers Volunteering and Awards while you have none.
+- **About you takes your profiles and a country code,** so Career holds every part of a JSON Resume.
+- **A new kind and its first entry are made in one card,** where the entry will live; one Create, one undo.
+- **+ Add glides to where the entry goes, then opens its form there;** a section's own "+" opens in place.
+- **The timeline's two lanes keep their own time:** an open card no longer pushes the other lane down.
+- **The pencil sits right after the name it edits,** and a section's heading stays on one line.
+- **Career's top fade grows with the scroll** instead of appearing at once.
+- **Mark as read** clears a machine-made wording's review mark; saving your own edit over it clears it too.
+
+### Fixed
+- **A place tab's name shows whole or not at all** while the tabs change, never cut short.
+- **The mat stays still when a card opens in Career,** and the top fade covers the toolbar's corners.
+- **Career's fields and month picker read clearly in light themes,** and the picker stays open while the page scrolls.
+
+## 1.9.3 - 2026-11-04
+
+### Changed
 - **The tabs above the card ease more calmly:** the open tab grows less and no longer hops or flashes, and the curve at its foot rises with its colour.
 - **Place switches are smoother:** the name card eases to its height between Resumes and Career instead of jumping, the sidebar panel fades in with its place, and the garden holds still while a place changes.
 - **Place switches do less work:** repeated text matching and month names are cached.

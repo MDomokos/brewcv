@@ -55,7 +55,7 @@ function look(kind){
 // a kind's hue as a colour (for --hk), and its chip: the monochrome icon on the hue (24 px), for the Outline's section headings (checklist.js)
 export const kindHue = kind => `var(--hue-${look(kind).hue})`;
 const kc = kind => `style="--hk:${kindHue(kind)}"`;
-export const kindChip = kind => `<span class="si" aria-hidden="true">${icon(look(kind).icon, { role: 'header' })}</span>`;
+export const kindChip = (kind, role = 'header') => `<span class="si" aria-hidden="true">${icon(look(kind).icon, { role })}</span>`;
 const kindLabel = kind => (BUILT[kind] || ['work', 'education', 'project'].includes(kind) ? t(`career.kind.${kind}`) : K.kindName(rec(), kind, L()));
 
 const ym = d => String(d ?? '').slice(0, 7);
@@ -221,7 +221,7 @@ function aboutView(sel){
     <div class="detbox" data-form="about" data-part="contact">
       ${field('c-email', h('onb.email'), b.email, { type: 'email' })}${field('c-phone', h('onb.phone'), b.phone, { type: 'tel' })}
       ${field('c-city', h('onb.city'), b.location?.city)}${field('c-url', h('onb.website'), String(b.url ?? '').replace(/^https?:\/\//, ''))}
-      ${jsonOnly(`${field('c-addr', h('career.f.address'), b.location?.address ?? '')}<div class="grid2">${field('c-postal', h('career.f.postalCode'), b.location?.postalCode ?? '')}${field('c-region', h('career.f.region'), b.location?.region ?? '')}</div>`)}
+      ${jsonOnly(`${field('c-addr', h('career.f.address'), b.location?.address ?? '')}<div class="grid2">${field('c-postal', h('career.f.postalCode'), b.location?.postalCode ?? '')}${field('c-region', h('career.f.region'), b.location?.region ?? '')}</div>${field('c-country', h('career.f.countryCode'), b.location?.countryCode ?? '', { ph: 'PT' })}`)}
       ${field('c-rights', h('career.f.rights'), b.rights ?? '', { ph: t('career.f.rightsPh') })}
     </div>
     ${d.contact ? `<button type="button" class="newv inline press" data-tier="tertiary" data-act="c-sel-fact" data-fact="${esc(d.contact)}">${withArrows(h('career.contactVersions'))}</button>` : ''}
@@ -408,7 +408,7 @@ function ownDates(key, id, res){
 }
 function saveAbout(part){
   let res;
-  const fields = part === 'name' ? { name: val('c-name'), label: val('c-label') } : { email: val('c-email'), phone: val('c-phone'), city: val('c-city'), url: val('c-url'), rights: val('c-rights'), ...opt('address', 'c-addr'), ...opt('postalCode', 'c-postal'), ...opt('region', 'c-region') };
+  const fields = part === 'name' ? { name: val('c-name'), label: val('c-label') } : { email: val('c-email'), phone: val('c-phone'), city: val('c-city'), url: val('c-url'), rights: val('c-rights'), ...opt('address', 'c-addr'), ...opt('postalCode', 'c-postal'), ...opt('region', 'c-region'), ...opt('countryCode', 'c-country') };
   commit(d => { res = K.updateAbout(d.record, fields, L()); }, t('undo.editAbout'));
   if (res) say({ title: res.label, meta: res.contact });
 }

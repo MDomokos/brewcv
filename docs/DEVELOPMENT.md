@@ -70,7 +70,8 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            the card whose body is what is selected (nothing is the Outline, a job its lines, a line its versions). The bar (`#rail`, drawn by `drawRail`)
                            is the column's foot, the same in every place: the brand (home: Resumes), Saved, undo, redo, the "?" (the one menu: Tea or Coffee, light or
                            dark, help, settings and the files, `appMenuHtml`) and the fold. In Career, with a resume open, the name card's last row is Its picks | Whole career: Its picks frames the card in
-                           the accent and dims, in place, the timeline's entries the resume does not print (`lensMarks`: none of their facts or lines is on its page) and the lines it leaves out. Folded, the way and the bar are two 54px strips at the window's edge.
+                           the accent and dims, in place, the timeline's entries the resume does not print (careerview.js `dim`: none of their facts or lines is on its page) and the lines it leaves out;
+                           Whole career (or no resume open) makes the card the career file, whose Export downloads career.json or a JSON Resume, or copies the career as text. Folded, the way and the bar are two 54px strips at the window's edge.
                            A phone and the start screen still use `#foot`. The page fill (the page bars) is
                            once, at the top of Export; a desktop has no Fit button (a phone's foot keeps it; checks run it with `__wb.fit()`). When the name is clicked, the name window: the name
                            card grows down over the editor card with the rename field, where the resume was copied from,
@@ -82,7 +83,7 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            a back button, as Record always was, and its cards keep their actions and sent copies (it has no inspector). Every radius and shadow of
                            flow.css is a token, so Coffee draws it square and flat),
                            dock (the page bars and Fit, the phone's foot, the zoom bar over the page with Actual size, hover hints that show on keyboard focus too, the way's keys), checklist (the record's groups, drawn by record.js and, at the job
-                           level, beside the job), record (Career: profile cards on top, the vertical timeline under them, newest first, the selected entry moved into the inspector with its Details folded and its lines to tick, both scopes named; search finds entries and lines; a click on the timeline, the page's job chip and Edit's "n of m on" links arrive here),
+                           level, beside the job), record (Career's place: its toolbar, and an entry asked for by the page's job chip or Edit's "n of m on" links moved into the inspector with its Details folded and its lines to tick, both scopes named), careerview (Career itself: About you, the timeline on its spine and Skills & credentials as cards, each edited in place, one editor at a time, in a language of its own (`ui.careerLang`); the sidebar follows what is open, else lists the languages and what is left to write; #scr carries the mat, so it scrolls with Career in the same frame, and its top and foot fade with a mask),
                            screens (the Library: a card for each resume, the information beside the picture, Open now and Sent N times, a tick for Compare,
                            as many to a row as hold 260px, newest first; a click selects, and Enter, a double click or the inspector's Open opens; the inspector
                            is the selected resume's pages across the panel, scrolled in place and never opening it (`morePages` adds the pages after the first),
@@ -153,7 +154,7 @@ docs/                      this guide, THEMES.md (making a theme), THEME-DESIGN-
 | Alt+↑, Alt+↓ | Move the selected line, job, section or item, or a focused row, one place | `edit.js` |
 | ↑, ↓ on a grip | Move what the grip holds one place; Esc puts a lifted block back where it was | `hands.js` |
 | −, =, 0 | Zoom out, zoom in, show the whole page | `canvas.js` |
-| Esc | Up one level (line, job, page); in Career an open menu first; never changes place | `shell.js` |
+| Esc, Ctrl+. | Up one level (line, job, page); in Career a menu first, then an unsaved edit is cancelled, then what is open closes (a click on the bare mat or the mouse's back button close too, but keep an edit); never changes place | `shell.js`, `careerview.js` |
 
 A mod key is handled before the plain letters, so Ctrl+F never reaches the plain F. A new key goes into `help.js` and this table.
 

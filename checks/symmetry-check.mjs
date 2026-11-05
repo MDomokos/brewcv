@@ -84,8 +84,9 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   const out = await page.$$eval('#body [data-act=ol-newline]', bs => bs.map(b => b.textContent.trim()));
   ok('the Outline\u2019s button (a line only on this resume) reads "+ line here"', out.length > 0 && out.every(x => x === '+ line here'), out.join('|'));
   await page.click('#ptabs [data-p=career]'); await page.waitForTimeout(700);
-  const rec = await page.$$eval('#checklist [data-act=ol-addline]', bs => bs.map(b => b.textContent.trim()));
-  ok('the Record\u2019s button (a new claim in the record) reads "+ new claim"', rec.length > 0 && rec.every(x => x === '+ new claim'), rec.join('|'));
+  await page.click('#scr .ce-card[data-ce-card=hydra] .ce-ch'); await page.waitForTimeout(400);
+  const rec = await page.$$eval('#scr .ce-card[data-ce-card=hydra] .ce-lines [data-act=cv-newline]', bs => bs.map(b => b.textContent.trim()));
+  ok('Career\u2019s button (a new line in the career) reads "+ New line"', rec.length === 1 && rec[0] === '+ New line', rec.join('|'));
   await ctx.close();
 }
 
@@ -275,7 +276,7 @@ await run('an Undo button on the toast of a delete', async () => {
   const nEdu = () => page.evaluate(() => window.__wb.store.state.record.projects.length);
   const e0 = await nEdu();
   await page.click('#ptabs [data-p=career]'); await wait();
-  await page.click('#scr .rectl [data-grp=chassis-jig]'); await wait();      // the entry opens in Career's inspector
+  await page.evaluate(() => window.__wb.record.open(['chassis-jig'])); await wait();      // the entry asked for opens in Career's inspector
   await page.evaluate(() => document.querySelector('#body [data-act=c-del-entry]').click()); await wait();      // (it is inside the entry's Details fold)
   ok('a deleted entry\u2019s toast has an Undo button, and it brings the entry back', (await nEdu()) === e0 - 1 && !!(await page.$('#toast.on [data-act=toast-undo]')) && (await page.click('#toast [data-act=toast-undo]'), await wait(), (await nEdu()) === e0));
   await ctx.close();

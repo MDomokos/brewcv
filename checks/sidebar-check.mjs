@@ -545,7 +545,8 @@ if (want('off')){
 const TIER_STATES = { outline: STATES.outline, line: STATES.line, job: STATES.job, section: STATES.section, header: STATES.header, design: STATES.design, export: STATES.export, settings: STATES.settings,
   'name window': async page => { await page.click('#docname-btn'); }, menu: async page => { await page.click('#rail [data-act=menu]'); },
   'library inspector': STATES['library inspector'],
-  'career inspector': async page => { await page.evaluate(() => window.__wb.setView('record')); await page.waitForTimeout(400); } };
+  'career sidebar': async page => { await page.evaluate(() => window.__wb.setView('record')); await page.waitForTimeout(400); },
+  'career inspector': async page => { await page.evaluate(() => window.__wb.setView('record')); await page.waitForTimeout(400); await page.evaluate(() => window.__wb.record.open(['hydra'])); await page.waitForTimeout(400); } };
 async function tiers(){
   const { OWN = '' } = await import('/src/ui/press.js');
   const name = e => e.dataset.act || e.id || e.getAttribute('role') || [...e.classList].filter(c => c !== 'press')[0] || e.tagName.toLowerCase();

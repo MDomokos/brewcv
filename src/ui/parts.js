@@ -86,7 +86,8 @@ export function missBar({ lang, list, act = 'go-missing', group = false, offer =
 // x.useOpen: the ones unfolded). The summary's own data-act keeps a click on it from choosing the row's version.
 const FLAG = { 'needs-review': () => [t('wb.review'), t('wb.reviewTip')], imported: v => [t('flag.imported'), v.source ?? ''] };
 function vtags(v, x){
-  const flags = R.flagsOf(v).map(f => { const [label, tip] = FLAG[f](v); return `<span class="tag flag" title="${esc(tip)}">${esc(label)}</span>`; }).join('');
+  const read = f => (f === 'needs-review' ? `<button type="button" class="tag vread" data-act="v-read" data-v="${esc(v.id)}" title="${esc(t('cv.markReadTip'))}">${h('cv.markRead')}</button>` : '');
+  const flags = R.flagsOf(v).map(f => { const [label, tip] = FLAG[f](v); return `<span class="tag flag" title="${esc(tip)}">${esc(label)}</span>${read(f)}`; }).join('');
   // the resume's other languages that print this version's number on the line
   const langs = (x.line?.others ?? []).filter(o => String(o.n) === String(v.n)).map(o => `<span class="tag ltag" title="${esc(t('edit.langUses', { lang: LANG_NAME[o.lang] ?? o.lang }))}">${esc(o.lang.toUpperCase())}</span>`).join('');
   const names = x.uses?.get(v.id) ?? [];

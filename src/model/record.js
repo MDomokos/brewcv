@@ -122,6 +122,7 @@ export function saveOver(model, vid, text, recipe = null){
   const t = clean(text);
   if (!t) throw new RecordError('a version needs some text');
   setText(v, t);
+  clearFlag(model, vid, 'needs-review');      // the person has read it, and written it in their own words
   return v;
 }
 
@@ -135,6 +136,14 @@ function freeId(model, base){
 // Older files may hold other tags there; they are kept as they are and not shown.
 export const FLAGS = ['needs-review', 'imported'];
 export const flagsOf = v => FLAGS.filter(f => (v?.tags ?? []).includes(f));
+// Take a flag off a version (a native speaker has read a machine-made wording). False when it had none.
+export function clearFlag(model, vid, flag){
+  const v = index(model).variant(vid);
+  if (!v) throw new RecordError(`no such version: ${vid}`);
+  if (!(v.tags ?? []).includes(flag)) return false;
+  v.tags = v.tags.filter(x => x !== flag);
+  return true;
+}
 
 // Tags, language and source come from `from`. `as`: 'minor' (vN.x under from's major) or 'major'.
 // `marks` are the highlights the text already has; without them `from`'s are moved onto the new text. `source` wins over from's.
@@ -154,7 +163,7 @@ export function addVersion(model, factId, { text, lang, from = null, as = 'major
   const id = freeId(model, `${factId}-v${n.replace('.', '-')}${L === DEFAULT_LANG ? '' : `-${L}`}`);
   const v = {
     id, n, lang: L, text: t, marks: [], links: [],
-    tags: [...(src?.tags ?? (tagsFrom ? ix.variant(tagsFrom)?.tags : null) ?? [])],
+    tags: src ? (src.tags ?? []).filter(x => x !== 'needs-review') : [...((tagsFrom ? ix.variant(tagsFrom)?.tags : null) ?? [])],      // a version written from another is the person's own: no longer machine-made
     ...(source ?? src?.source ? { source: source ?? src.source } : {}),
     seenIn: [],
     metrics: { chars: cps(t).length, measured: {} },
