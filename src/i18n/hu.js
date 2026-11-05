@@ -2031,4 +2031,5 @@ export default {
   'cv.prof.url': 'Hivatkozás',
   'cv.addProfile': '+ Profil',
   'cv.undoProfile': 'Profil módosítása',
+  'cv.firstEntry': 'Első bejegyzés',
 };

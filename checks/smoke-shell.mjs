@@ -108,7 +108,7 @@ const importStep = page => page.evaluate(() => document.querySelector('#import[o
 const fillPaste = async (page, text) => { await page.evaluate(() => { document.querySelector('#import .ipaste').open = true; }); await page.fill('#imp-paste', text); };
 async function settle(page){
   const quiet = () => {       // true when quiet; else false, with the reason in window.__why (the page's CSP forbids evaluating a string)
-    const wb = window.__wb, finite = d => d.getAnimations().every(a => a.playState !== 'running' || a.effect.getComputedTiming().iterations === Infinity);
+    const wb = window.__wb, finite = d => d.getAnimations().every(a => a.playState !== 'running' || a.effect.getComputedTiming().iterations === Infinity || (globalThis.ScrollTimeline && a.timeline instanceof ScrollTimeline));      // one driven by a scroll (Career's top fade) is never over and never a motion
     const why = w => { window.__why = w; return !w; };
     if (document.fonts.status !== 'loaded') return why('fonts are loading');
     if (wb?.busy()) return why('a redraw is waiting or running');
@@ -1612,11 +1612,10 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
   await openAdd(page); await settle(page);
   await page.click('.addm [data-act=cv-kind-new]:not([data-p])'); await settle(page);
   await page.click('#ce-kindcard [data-act=cv-kpreset][data-p=awards]'); await settle(page);
+  ok('the kind\u2019s card asks for its first entry too, in Career', await page.isVisible('#ce-kindcard [data-ce-e=pos]') && (await page.evaluate(() => window.__wb.ui.view)) === 'record');
+  await page.fill('#ce-kindcard [data-ce-e=pos]', 'Best student design'); await page.fill('#ce-kindcard [data-ce-e=org]', 'Example Society'); await pickMonth(page, 'ce-ke-start', '2020-11');
   await page.click('#ce-kindcard [data-act=cv-kcreate]'); await settle(page);
-  ok('Awards, made from the preset in Career, is a list kind', (await st()).record.kinds?.[0]?.store === 'awards' && (await st()).record.kinds[0].place === 'list' && (await page.evaluate(() => window.__wb.ui.view)) === 'record');
-  ok('and the card for its first entry opens in Career', await page.isVisible('#ce-addcard [data-ce-f=pos]'));
-  await page.fill('#ce-addcard [data-ce-f=pos]', 'Best student design'); await page.fill('#ce-addcard [data-ce-f=org]', 'Example Society'); await pickMonth(page, 'ce-f-start', '2020-11');
-  await page.click('#ce-addcard [data-act=cv-addsave]'); await settle(page);
+  ok('Awards, made from the preset in Career, is a list kind', (await st()).record.kinds?.[0]?.store === 'awards' && (await st()).record.kinds[0].place === 'list');
   ok('the entry is a JSON Resume award', (await st()).record.awards?.[0]?.title === 'Best student design');
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
   await inRecord(page, 'awards');
@@ -1627,8 +1626,7 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
   // another list kind, then delete Awards moving its entry there
   await openAdd(page); await settle(page); await page.click('.addm [data-act=cv-kind-new]:not([data-p])'); await settle(page);
   await page.fill('#ce-kindcard [data-ce-k=name]', 'Exhibitions'); await page.check('#ce-kindcard [name=ce-kplace][value=list]'); await settle(page);
-  await page.click('#ce-kindcard [data-act=cv-kcreate]'); await settle(page);
-  await page.click('#ce-addcard [data-act=cv-addcancel]').catch(() => {}); await settle(page);
+  await page.fill('#ce-kindcard [data-ce-e=pos]', 'Material Matters'); await page.click('#ce-kindcard [data-act=cv-kcreate]'); await settle(page);
   await openAdd(page); await settle(page);
   await page.click('.addm .kset[data-id="awards"]'); await settle(page);
   ok('an existing kind’s editor has no Create button: its colour and icon change at once', !(await page.$('#ce-kindcard [data-act=cv-kcreate]')) && await page.isVisible('#ce-kindcard [data-act=cv-kcolour]'));
@@ -4303,7 +4301,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
       // unticked row in place, and the next tick would land on the same line (two steps, not three). The ticks follow at the speed of the app.
       const t0 = Date.now();
       for (let i = 0; i < 3; i++){
-        await page.locator('#body .clrow.is-off .cb[data-on]').first().check();
+        const id = await page.locator('#body .clrow.is-off .cb[data-on]').first().getAttribute('data-on'); await page.check(`#body .cb[data-on="${id}"]`);      // by its line: a redraw between the click and the check's own look must not tick the next one
         await page.waitForFunction(n => document.querySelector('#sheet iframe').contentDocument.querySelectorAll('.bullets li').length === n, n0 + i + 1, { timeout: 20000, polling: 50 }).catch(() => {});
       }
       await settle(page);
@@ -7657,7 +7655,7 @@ if (want('native controls: every select, date and colour is the app’s own')) f
   await page.click('[data-act=mark-sent]'); await settle(page);
   await page.click('#sv-date-b'); await settle(page);
   const day = await page.evaluate(() => { const e = document.querySelector('#mp-menu'); return { dow: e?.querySelectorAll('.mpdow span').length, days: e?.querySelectorAll('.mpdays [data-act=mp-pick]').length, sel: e?.querySelectorAll('[aria-pressed=true]').length, title: e?.querySelector('.mpyear output')?.textContent, bg: e && getComputedStyle(e).backgroundColor, tier: [...new Set([...e.querySelectorAll('.mpdays [data-act=mp-pick]')].map(x => x.dataset.tier))].join() }; });
-  ok(`${tag}: Mark as sent has a day picker in the app's own menu: weekdays, the month's days (the sent date pressed), tertiary presses, in the pop-up colours`, day.dow === 7 && day.days >= 28 && day.sel === 1 && day.tier === 'tertiary' && day.bg === await token('--pop', 'backgroundColor', '#mp-menu'), JSON.stringify(day));
+  ok(`${tag}: Mark as sent has a day picker in the app's own menu: weekdays, the month's days (the sent date pressed), tertiary presses, in the pop-up colours of the panel it opens from`, day.dow === 7 && day.days >= 28 && day.sel === 1 && day.tier === 'tertiary' && day.bg === await token('--pop', 'backgroundColor', '#sv-date-b'), JSON.stringify(day));      // the colours of the surface its field sits on
   await page.click('#mp-menu [data-act=mp-month][data-d="-1"]'); await settle(page);
   const prev = await page.textContent('#mp-menu .mpyear output');
   await page.click('#mp-menu .mpdays [data-v$="-15"]'); await settle(page);

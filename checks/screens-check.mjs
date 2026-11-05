@@ -678,7 +678,7 @@ await part('Career: About you, the timeline (newest first) and the cards; an ent
   await page.click('#ptabs [data-p=career]'); await settle(page, 500);
   const c = await page.evaluate(() => {
     const R = e => e.getBoundingClientRect(), years = [...document.querySelectorAll('#scr .ce-yr')].map(y => y.textContent.trim()), tl = document.querySelector('#scr .ce-tg');
-    const flo = [...document.querySelectorAll('#scr *')].filter(e => { const s = getComputedStyle(e); return (s.position === 'fixed' || s.position === 'absolute') && R(e).width > 120 && R(e).height > 30 && !e.closest('.tbar') && !e.matches('.sr, .sr *'); }).map(e => e.className);
+    const flo = [...document.querySelectorAll('#scr *')].filter(e => { const s = getComputedStyle(e); return (s.position === 'fixed' || s.position === 'absolute') && R(e).width > 120 && R(e).height > 30 && !e.closest('.tbar') && !e.matches('.sr, .sr *') && !e.matches('.ce-flow > .ce-yr, .ce-flow .ce-card'); }).map(e => e.className);      // the timeline's lanes are laid out in place, not floating
     return { years, first: document.querySelector('#scr .ce-card .t b')?.textContent, floating: flo, toolbar: !!document.querySelector('#scr .tbar #rec-q'), aboutAbove: R(document.querySelector('#scr .ce-about')).bottom <= R(tl).top, boxes: document.querySelectorAll('#scr .ce-box').length, side: !!document.querySelector('#body .ce-side .ce-chips') };
   });
   ok('About you on top, the timeline under it, newest year first, then the cards of Skills & credentials; the sidebar lists the languages', c.aboutAbove && c.years[0] === 'Now' && +c.years[1] > +c.years.at(-1) && c.first === 'Design Engineer' && c.boxes >= 4 && c.side, JSON.stringify(c));

@@ -2031,4 +2031,5 @@ export default {
   'cv.prof.url': 'Odkaz',
   'cv.addProfile': '+ Profil',
   'cv.undoProfile': 'Změna profilu',
+  'cv.firstEntry': 'První položka',
 };

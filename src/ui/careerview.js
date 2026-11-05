@@ -18,6 +18,7 @@ import { t, h, errText } from '../i18n/index.js';
 import { icon } from './icons.js';
 import { kindChip, kindHue, SWATCH_HUES } from './career.js';
 import { monthFieldHtml, initMonthPick } from './monthpick.js';
+import { reduced } from './motion.js';
 
 let C = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -194,9 +195,10 @@ function card(e, lang, q, lane){
     ? `<div class="ce-v is-edit ce-nl">${num(t('cv.new'))}<div class="cvb">${ta(ne, '', t('cv.newLinePh'))}<div class="cva">${btn('save', h('cv.save'), 'data-m="line"', 'pri')}${btn('cancel', h('btn.cancel'), '', 'ghost')}</div></div></div>`
     : `<button type="button" class="ce-new ce-nline" data-act="cv-newline" data-g="${esc(e.grp)}">${h('cv.newLine')}</button>`;
   const det = S.detail === e.grp ? `<div class="ce-det">${fieldsOfEntry(e)}<div class="ce-detf">${btn('details', h('cv.done'), `data-g="${esc(e.grp)}"`)}</div></div>` : '';
-  const head = `<span class="node">${kindChip(e.kind)}</span><span class="t"><b class="${e.titleMissing ? 'is-miss' : ''}">${esc(e.title)}</b><small>${esc(sub)}</small>${sum ? `<em class="ce-sum">${esc(sum)}</em>` : ''}</span><span class="d">${esc(dates)}</span>`;
+  const edit = pencil('cv-details', t('cv.editDetails', { name: e.title }), S.detail === e.grp, `data-g="${esc(e.grp)}"`);
+  const head = `<span class="node">${kindChip(e.kind)}</span><span class="t"><span class="tt"><b class="${e.titleMissing ? 'is-miss' : ''}">${esc(e.title)}</b>${edit}</span><small>${esc(sub)}</small>${sum ? `<em class="ce-sum">${esc(sum)}</em>` : ''}</span><span class="d">${esc(dates)}</span>`;
   return `<div class="ce-card k${lane}${isOpen ? ' is-open' : ''}" data-ce-card="${esc(e.grp)}" data-key="${esc(e.key)}" style="--hk:${kindHue(e.kind)}">
-    <div class="ce-ch${canOpen ? ' is-tog' : ''}" ${canOpen ? `data-act="cv-tog" data-g="${esc(e.grp)}" role="button" tabindex="0" aria-expanded="${isOpen}"` : ''}>${head}${claimable ? `<button type="button" class="ce-hadd ce-cline" data-act="cv-newline" data-g="${esc(e.grp)}">${h('cv.addLine')}</button>` : ''}${pencil('cv-details', t('cv.editDetails', { name: e.title }), S.detail === e.grp, `data-g="${esc(e.grp)}"`)}</div>${det}
+    <div class="ce-ch${canOpen ? ' is-tog' : ''}" ${canOpen ? `data-act="cv-tog" data-g="${esc(e.grp)}" role="button" tabindex="0" aria-expanded="${isOpen}"` : ''}>${head}${claimable ? `<button type="button" class="ce-hadd ce-cline" data-act="cv-newline" data-g="${esc(e.grp)}">${h('cv.addLine')}</button>` : ''}</div>${det}
     ${isOpen ? `<div class="ce-lines">${e.lines.map(l => lineHtml(l, lang, lit)).join('')}${nl}</div>` : ''}</div>`;
 }
 function timeline(d, lang, q){
@@ -204,11 +206,11 @@ function timeline(d, lang, q){
   const lane = (xs, k) => xs.filter(x => by.has(x.id)).map(x => card(by.get(x.id), lang, q, k)).join('');
   const bands = K.timelineLayout(rec(), { lang, hideArchived: true }).bands.map(b => ({ y: b.year, main: lane(b.main, 1), side: lane(b.side, 2) })).filter(b => b.main || b.side);
   const rows = bands.map(b => `<div class="ce-yr">${esc(b.y ?? t('career.nowBand'))}</div><div class="ce-yrow"><div class="ce-lane">${b.main}</div><div class="ce-lane">${b.side}</div></div>`).join('');
-  const top = S.kind ? kindEditor() : S.adding && !['certificates', 'publications'].includes(S.adding) && !isListKind(S.adding) ? addCard(S.adding) : '';
+  const top = kindPlace() === 'timeline' ? kindEditor() : S.adding && !['certificates', 'publications'].includes(S.adding) && !isListKind(S.adding) ? addCard(S.adding) : '';
   const plus = (label, attrs) => `<button type="button" class="ce-hadd" ${attrs} title="${esc(label)}" aria-label="${esc(label)}">${icon('plus', { role: 'inline' })}</button>`;
   const heads = `<div class="ce-lhs"><span class="ce-lh"><span>${h('career.colMain')}</span>${plus(t('cv.addJob'), 'data-act="cv-add" data-what="work"')}</span>
     <span class="ce-lh"><span>${h('career.colSide')}</span>${plus(t('cv.addSide'), 'data-act="cv-menu" data-menu="side" aria-haspopup="menu" aria-expanded="false"')}</span></div>`;
-  return `<div class="ce-tg">${heads}${top}${rows}</div>${bands.length ? '' : `<p class="ce-none">${h(q ? 'cv.noMatch' : 'cv.nothingYet')}</p>`}`;
+  return `<div class="ce-tg">${heads}${top}<div class="ce-bands">${rows}</div></div>${bands.length ? '' : `<p class="ce-none">${h(q ? 'cv.noMatch' : 'cv.nothingYet')}</p>`}`;
 }
 
 // ---- About you: the name and contact | the summary; the headline, contact line and summary fan out their wordings ----
@@ -235,8 +237,8 @@ function about(d, lang, q){
     const id = ids[k], w = a[k]; if (!id || !w || !S.fan.get(id)) return '';
     return `<div class="ce-abfan" data-ce-fact="${esc(id)}"><div class="ce-fl">${h(lab)}</div>${fanHtml(id, w.text, lang, S.fan.get(id))}</div>`;
   }).join('');
-  return `<section class="ce-about" id="ce-about"><div class="ce-ab">${pencil('cv-about', t('cv.editAbout'), S.about, '', ' ce-abp')}
-    <div class="id"><span class="nm">${esc(a.name.text)}</span>${part('tg', a.tagline, ids.tagline)}${part('ct', a.contact, ids.contact)}</div>${a.summary ? `<div class="ce-smc">${part('sm', a.summary, ids.summary)}</div>` : ''}
+  return `<section class="ce-about" id="ce-about"><div class="ce-ab">
+    <div class="id"><span class="nmw"><span class="nm">${esc(a.name.text)}</span>${pencil('cv-about', t('cv.editAbout'), S.about)}</span>${part('tg', a.tagline, ids.tagline)}${part('ct', a.contact, ids.contact)}</div>${a.summary ? `<div class="ce-smc">${part('sm', a.summary, ids.summary)}</div>` : ''}
     ${S.about ? aboutForm() : ''}${fans}</div>${S.inl === 'summary' ? inlineAdd('summary') : ''}</section>`;
 }
 
@@ -351,10 +353,10 @@ function secCard(s, lang, q){
   else body = s.items.filter(x => hit(`${x.title} ${x.sub ?? ''}`)).map(x => itemRow(s, x, lang, lens)).join('');
   if (q && !body) return '';
   const sw = lens ? `<label class="ce-sw">${cbx(`data-act="cv-secon" data-id="${esc(lens.sid)}"`, lens.on, t('cv.showOn', { what: s.label }))}<span>${h('cv.onResume')}</span></label>` : '';
-  const kset = K.kindOf(rec(), s.kind) ? `<button type="button" class="ce-dt ce-sp" data-act="cv-kind-edit" data-id="${esc(s.kind)}" title="${esc(t('career.kindSettings', { name: s.label }))}" aria-label="${esc(t('career.kindSettings', { name: s.label }))}">⚙</button>` : '';
+  const kset = K.kindOf(rec(), s.kind) ? `<button type="button" class="ce-dt ce-ks" data-act="cv-kind-edit" data-id="${esc(s.kind)}" title="${esc(t('career.kindSettings', { name: s.label }))}" aria-label="${esc(t('career.kindSettings', { name: s.label }))}">⚙</button>` : '';
   const hadd = ed ? '' : `<button type="button" class="ce-hadd" data-act="cv-add" data-what="${esc(s.kind)}" aria-label="${esc(t('cv.addThing', { thing: thingOf(s.kind) }))}" title="${esc(t('cv.addThing', { thing: thingOf(s.kind) }))}">${icon('plus', { role: 'inline' })}<span class="w">${h('cv.addThing', { thing: thingOf(s.kind) })}</span></button>`;
   return `<section class="ce-box${ed ? ' is-editing' : ''}${lens && !lens.on ? ' is-off' : ''}" id="ce-${esc(s.id)}" data-ce-sec="${esc(s.kind)}" style="--hk:${kindHue(s.kind)}">
-    <h3><span class="chip">${kindChip(s.kind)}</span><span class="nm">${esc(s.label)}</span><span class="n">${s.count}</span>${s.toWrite ? `<span class="tw">${h('cv.toWriteIn', { n: s.toWrite, lang: U(lang) })}</span>` : ''}${sw}${hadd}${kset}${pencil('cv-secedit', t('cv.editThing', { what: s.label }), ed, `data-k="${esc(s.kind)}"`, ' ce-sp')}</h3>
+    <h3><span class="chip">${kindChip(s.kind)}</span><span class="nm">${esc(s.label)}</span><span class="n">${s.count}</span><span class="ce-tools">${pencil('cv-secedit', t('cv.editThing', { what: s.label }), ed, `data-k="${esc(s.kind)}"`, ' ce-sp')}${kset}</span>${s.toWrite ? `<span class="tw" title="${esc(t('cv.toWriteIn', { n: s.toWrite, lang: U(lang) }))}"><span class="w">${h('cv.toWriteIn', { n: s.toWrite, lang: U(lang) })}</span><span class="nn" aria-hidden="true">${s.toWrite}</span></span>` : ''}${sw}${hadd}</h3>
     ${S.adding === s.kind ? addCard(s.kind) : ''}${body || `<p class="ce-none">${h('cv.nothingYet')}</p>`}${!q && !ed && S.inl === s.kind ? inlineAdd(s.kind) : ''}</section>`;
 }
 const thingOf = k => (THING[k] ? t(THING[k]) : (K.kindName(rec(), k, L()) ?? k).toLowerCase());
@@ -365,7 +367,7 @@ function lists(d, lang, q){
   // a list the record has none of yet: its card appears with the add in it
   const want = [S.inl, S.adding].find(k => k && (k === 'references' || isListKind(k)) && !secs.some(s => s.kind === k));
   const stub = want ? `<section class="ce-box is-editing" data-ce-sec="${esc(want)}" style="--hk:${kindHue(want)}"><h3><span class="chip">${kindChip(want)}</span><span class="nm">${esc(want === 'references' ? t('cv.sec.references') : K.kindName(rec(), want, lang))}</span><span class="n">0</span></h3>${S.adding === want ? addCard(want) : inlineAdd(want)}</section>` : '';
-  return `${skills}<div class="ce-cols">${rest}${stub}</div>`;
+  return `${kindPlace() === 'list' ? kindEditor() : ''}${skills}<div class="ce-cols">${rest}${stub}</div>`;
 }
 
 // ---- adding: a big entry opens a card in the page, a small one a row where it belongs ----
@@ -416,6 +418,7 @@ function readKind(){
   const d = S.kind?.draft, card = document.getElementById('ce-kindcard'); if (!d || !card) return;
   const n = card.querySelector('[data-ce-k=name]')?.value; if (n !== undefined) d.name[L()] = n;
   const o = card.querySelector('[data-ce-k=org]')?.value; if (o !== undefined) d.org = o;
+  if (!S.kind.id) S.kind.first = Object.fromEntries(['pos', 'org', 'line', 'start', 'end'].map(k => [k, card.querySelector(`[data-ce-e=${k}], #ce-ke-${k}`)?.value ?? '']));      // the first entry's fields survive a redraw
 }
 function kindName(d){
   if (!String(d.name.en ?? '').trim() && L() !== 'en') d.name.en = d.name[L()];
@@ -429,15 +432,29 @@ function saveKindNow(){
   if (!kindName(d)) return C.toast(t('error.kindName'), 'warn');
   commit(x => { K.updateKind(x.record, id, d, recipesOf(x), x.cur); }, t('undo.editKind'));
 }
+// a new kind and its first entry are made together: one Create, one undo step; the entry is then open where it lives
 function createKind(){
   readKind();
-  const d = S.kind.draft;
+  const d = S.kind.draft, v = k => (document.querySelector(`#ce-kindcard [data-ce-e=${k}], #ce-kindcard #ce-ke-${k}`)?.value ?? '').trim(), lang = L();
   if (!kindName(d)){ C.toast(t('error.kindName'), 'warn'); S.focus = '#ce-kindcard [data-ce-k=name]'; draw(); return; }
-  let made;
-  if (!commit(x => { made = K.createKind(x.record, d); }, t('undo.newKind'), t('career.kindCreated', { name: d.name[L()] || d.name.en }))) return;
-  S.kind = null; S.adding = made; S.focus = '#ce-addcard input'; S.reveal = true;      // its first entry, in its own place
+  if (!v('pos')){ C.toast(t('cv.fillFirst'), 'warn'); S.focus = '#ce-kindcard [data-ce-e=pos]'; draw(); return; }
+  let kind, entry;
+  if (!commit(x => { kind = K.createKind(x.record, d); entry = K.addKindEntry(x.record, kind, { name: v('pos'), org: v('org'), startDate: v('start'), endDate: d.place === 'list' ? '' : v('end'), bullets: v('line') && d.place !== 'list' ? [v('line')] : [], lang }); }, t('undo.newKind'), t('career.kindCreated', { name: d.name[lang] || d.name.en }))) return;
+  S.kind = null; S.reveal = 'jump';
+  if (d.place === 'list') S.focus = `[data-ce-sec="${CSS.escape(kind)}"] h3`;
+  else { S.open.add(entry); S.ctx = { card: entry }; S.focus = `[data-ce-card="${CSS.escape(entry)}"] .ce-ch`; }
   draw();
 }
+// the first entry's own fields, under the kind's: a timeline kind has a period and a first line, a list kind one date
+function entryFields(d){
+  const lang = L(), list = d.place === 'list', was = S.kind.first ?? {};
+  const f = (k, label) => `<label class="ce-f"><span>${esc(label)}</span><input class="ce-ed" data-ce-e="${k}" type="text" value="${esc(was[k] ?? '')}" autocomplete="off"></label>`;
+  return `<div class="ce-f wide ce-kfirst"><span>${h('cv.firstEntry')}</span></div>${f('pos', t('career.f.title'))}${f('org', d.org || t('career.f.org'))}
+    ${monthFieldHtml('ce-ke-start', h(list ? 'career.f.date' : 'career.f.started'), was.start ?? '', { lang, host: 'ce' })}${list ? '' : monthFieldHtml('ce-ke-end', h('career.f.ended'), was.end ?? '', { lang, host: 'ce', present: true })}
+    ${list ? '' : `<label class="ce-f wide"><span>${h('cv.whatDidOpt')}</span><input class="ce-ed" data-ce-e="line" value="${esc(was.line ?? '')}" placeholder="${esc(t('cv.whatDidPh'))}" autocomplete="off"></label>`}`;
+}
+// where the kind editor sits: with the timeline's entries, or with Skills & credentials
+const kindPlace = () => (S.kind ? (S.kind.id ? K.kindOf(rec(), S.kind.id)?.place : S.kind.draft.place) === 'list' ? 'list' : 'timeline' : null);
 function kindEditor(){
   const m = rec(), { id, draft: d, del } = S.kind, lang = L(), hue = SWATCH_HUES[(d.colour ?? 0) % 6];
   const presets = id ? '' : `<div class="ce-f wide"><span>${h('career.startFrom')}</span><div class="ce-kps">${['volunteering', 'awards', 'talks', 'blank'].map(p => `<button type="button" class="ce-kp" data-act="cv-kpreset" data-p="${p}" ${['volunteering', 'awards'].includes(p) && K.kindsOf(m).some(k => k.store === K.KIND_PRESETS[p].store) ? 'disabled' : ''}>${icon(K.KIND_PRESETS[p].icon, { role: 'control' })}${h(`career.preset.${p}`)}</button>`).join('')}</div></div>`;
@@ -453,14 +470,14 @@ function kindEditor(){
     <div class="ce-addf">${presets}<label class="ce-f"><span>${h('career.f.name')}</span><input class="ce-ed" data-ce-k="name" value="${esc(d.name[lang] ?? '')}" placeholder="${esc(d.name.en || t('career.kindNamePh'))}" autocomplete="off"></label>
     <label class="ce-f"><span>${h('career.orgCalled')}</span><input class="ce-ed" data-ce-k="org" value="${esc(d.org ?? '')}" placeholder="${esc(t('career.orgPh'))}" autocomplete="off"></label>
     <div class="ce-f wide"><span>${h('career.colour')}</span><div class="ce-sws">${swatches}</div></div>
-    <div class="ce-f wide"><span>${h('career.icon')}</span><div class="ce-kis">${icons}</div></div>${place}</div>
+    <div class="ce-f wide"><span>${h('career.icon')}</span><div class="ce-kis">${icons}</div></div>${place}${id ? '' : entryFields(d)}</div>
     ${store ? `<p class="ce-note">${h(store)}</p>` : ''}<p class="ce-note">${h('career.kindSection')}</p>${ask}<div class="ce-detf">${del ? '' : foot}</div></div>`;
 }
-function startAdd(w){
+function startAdd(w, how = 'menu'){
   solo(null);
   if (SMALL.has(w)){ S.inl = w; S.focus = '.ce-inl [data-ce-inlin]'; }
   else { S.adding = w; S.focus = '#ce-addcard input'; }
-  S.reveal = true;
+  S.reveal = how;
   draw();
 }
 function saveAdd(){
@@ -746,23 +763,98 @@ function html(q){
   q = q.trim().toLowerCase();
   return `<div class="ce-doc">${about(d, lang, q)}<div class="ce-bh" id="ce-timeline">${h('cv.timeline')}</div>${timeline(d, lang, q)}<div class="ce-bh" id="ce-skills">${h('cv.skillsCreds')}</div><div class="ce-boxes">${lists(d, lang, q)}</div></div>`;
 }
-// after a draw: the focus asked for, and the top fade's place under the toolbar
-// after a draw: Career keeps its scroll as it was (opening or closing a card or a section never moves it); only an add, a kind or a jump from
-// the sidebar scrolls, to bring what it opened into view; then the focus asked for, and the fades
+// after a draw: the timeline's lanes laid out, the focus asked for, then what an add opened brought into view, and the fades. Opening or
+// closing a card or a section never scrolls Career.
 function after(){
   const sc = pane(); if (!sc) return;
+  flowLanes(); watchFlow();
+  const how = S.reveal === true ? 'jump' : S.reveal; S.reveal = false;
+  let f = null;
   if (S.focus){
-    const f = sc.querySelector(S.focus); S.focus = null;
-    if (f){
-      f.focus({ preventScroll: true });
-      if (f.tagName === 'TEXTAREA') f.setSelectionRange(f.value.length, f.value.length); else f.select?.();
-      if (S.reveal) (f.closest('.ce-box, .ce-addcard, .ce-card, .ce-about') ?? f).scrollIntoView({ block: 'start' });
-    }
+    f = sc.querySelector(S.focus); S.focus = null;
+    if (f){ f.focus({ preventScroll: true }); if (f.tagName === 'TEXTAREA') f.setSelectionRange(f.value.length, f.value.length); else f.select?.(); }
   }
-  S.reveal = false;
+  if (f && how) reveal(sc, f, how);
   marks2(); dim();
 }
-
+// + Add: Career scrolls smoothly to where the new entry goes, and once it is there the entry's form grows open in place, what is below
+// sliding down. A hover add (on a section or a lane) grows open where it is, and scrolls only as far as the form needs to be seen. A jump
+// (from the sidebar, a kind just made) only scrolls. Under reduced motion: no glide, no growing, the same end.
+const GROW_MS = 240;
+function grow(el, then){
+  el.style.removeProperty('height'); el.style.removeProperty('overflow');
+  const hh = el.offsetHeight;
+  const a = el.animate([{ height: '0px', opacity: 0, overflow: 'hidden' }, { height: `${hh}px`, opacity: 1, overflow: 'hidden' }], { duration: GROW_MS, easing: 'cubic-bezier(.3, .7, .2, 1)' });
+  a.finished.then(() => then?.(), () => {});
+}
+function whenStill(sc, fn){
+  let done = false;
+  const end = () => { if (done) return; done = true; sc.removeEventListener('scrollend', end); fn(); };
+  sc.addEventListener('scrollend', end, { once: true });
+  setTimeout(end, 1500);      // a browser with no scrollend: the glide is over by then
+}
+function reveal(sc, f, how){
+  const slow = !reduced(), TOP = 84, FOOT = 24;
+  const form = how === 'jump' ? null : f.closest('#ce-addcard, #ce-kindcard, .ce-inl');
+  if (how === 'here'){
+    const show = () => { const r = (form ?? f).getBoundingClientRect(); const dy = r.bottom > innerHeight - FOOT ? Math.min(r.bottom - innerHeight + FOOT, r.top - TOP) : r.top < TOP ? r.top - TOP : 0; if (dy) sc.scrollBy({ top: dy, behavior: slow ? 'smooth' : 'auto' }); };
+    if (form && slow) grow(form, show); else show();
+    return;
+  }
+  const box = f.closest('.ce-box, .ce-kindcard, .ce-addcard, .ce-card, .ce-about') ?? f;
+  if (form && slow){ form.style.height = '0px'; form.style.overflow = 'hidden'; }      // not shown at its full size before the glide arrives
+  const to = Math.max(0, Math.min(sc.scrollHeight - sc.clientHeight, sc.scrollTop + box.getBoundingClientRect().top - TOP));
+  const open = () => { if (form && slow) grow(form); };
+  if (Math.abs(to - sc.scrollTop) < 1){ open(); return; }
+  if (!slow){ sc.scrollTop = to; return; }
+  sc.scrollTo({ top: to, behavior: 'smooth' });
+  whenStill(sc, open);
+}
+// Two lanes, each in its own time: a card sits at its year's place (where the year's band would start with every card closed) unless an
+// earlier card of its own lane is still in the way; an open card pushes only the cards of its lane. The year labels follow the left lane, on
+// the spine. One column (a narrow pane) is drawn as it is.
+function flowLanes(){
+  const box = pane()?.querySelector('.ce-doc .ce-bands'); if (!box) return;
+  const rows = [...box.querySelectorAll(':scope > .ce-yrow')], yrs = [...box.querySelectorAll(':scope > .ce-yr')];
+  const flat = () => { box.classList.remove('ce-flow'); box.style.removeProperty('height'); for (const n of box.querySelectorAll(':scope > .ce-yr, .ce-card')) for (const k of ['top', 'width']) n.style.removeProperty(k); };
+  if (!rows.length || rows.length !== yrs.length || getComputedStyle(rows[0]).gridTemplateColumns.trim().split(/\s+/).length < 2){ flat(); return; }
+  // measured in place, never by drawing the lanes as they were first: the yearly rows keep their columns, only their height is gone
+  const B = box.getBoundingClientRect(), px = v => parseFloat(v) || 0, cz = px(getComputedStyle(box).getPropertyValue('--cz')) || 1;
+  const lanes = [...rows[0].children].map(l => { const r = l.getBoundingClientRect(), c = getComputedStyle(l); return { left: r.left - B.left + px(c.paddingLeft) + px(c.borderLeftWidth), width: r.width - px(c.paddingLeft) - px(c.borderLeftWidth) - px(c.paddingRight) }; });
+  const gap = px(getComputedStyle(rows[0].children[0]).rowGap), mt = 12 * cz, mb = 4 * cz;      // the year label's own margins (flow.css .ce-yr)
+  const at = [];
+  let yC = 0, curL = 0, curR = 0;
+  yrs.forEach((yr, k) => {
+    const band = mt + yr.offsetHeight + mb;
+    const [L, R] = [...rows[k].children].map(l => [...l.children].filter(c => c.matches('.ce-card')));
+    const tb = yC, ly = Math.max(tb, curL);
+    at.push([yr, ly + mt, null]);
+    let y = ly + band;
+    for (const c of L){ at.push([c, y, lanes[0].width]); c.style.width = `${lanes[0].width}px`; y += c.offsetHeight + gap; }
+    curL = y;
+    y = Math.max(tb + band, curR);
+    for (const c of R){ at.push([c, y, lanes[1].width]); c.style.width = `${lanes[1].width}px`; y += c.offsetHeight + gap; }
+    curR = y;
+    const shut = cs => cs.reduce((n, c) => n + (c.querySelector(':scope > .ce-ch')?.offsetHeight ?? c.offsetHeight) + 2 + gap, 0);
+    yC = tb + band + Math.max(shut(L), shut(R));
+  });
+  box.style.setProperty('--ce-l0', `${lanes[0].left}px`);
+  box.style.setProperty('--ce-l1', `${lanes[1].left}px`);
+  box.style.setProperty('--ce-rx', `${lanes[1].left - 14}px`);
+  for (const [n, top] of at) n.style.top = `${top}px`;
+  box.style.height = `${Math.max(curL, curR, yC)}px`;
+  box.classList.add('ce-flow');
+}
+// laid out again when a card or the column changes size without a redraw (the zoom, a font arriving, the window)
+let flowQueued = 0;
+const flowRO = typeof ResizeObserver === 'function' ? new ResizeObserver(() => { if (!flowQueued) flowQueued = requestAnimationFrame(() => { flowQueued = 0; flowLanes(); }); }) : null;
+function watchFlow(){
+  if (!flowRO) return;
+  flowRO.disconnect();
+  const doc = pane()?.querySelector('.ce-doc'); if (!doc) return;
+  flowRO.observe(doc);
+  for (const n of doc.querySelectorAll('.ce-bands .ce-ch')) flowRO.observe(n);
+}
 // Its picks: an entry none of whose facts the open resume prints (its page, as drawn) is dimmed in place; the page may be drawn after Career
 function dim(){
   const on = lensOn(), shown = on ? C.printed() : null, w = on ? C.work() : null;
@@ -811,7 +903,7 @@ async function act(a, tg){
       if (pop?.anchor === tg){ closePop(); return true; }
       openPop(tg, d.menu, d.menu === 'lang' ? langMenu() : addMenu(d.menu === 'side' ? 'side' : 'all')); return true;
     }
-    case 'cv-add': closePop(); startAdd(d.what); return true;
+    case 'cv-add': { const how = tg.closest('#ce-pop') ? 'menu' : 'here'; closePop(); startAdd(d.what, how); return true; }
     case 'cv-file': closePop(); await file(d.v); return true;
     case 'cv-filemenu': if (pop?.kind === 'file') closePop(); else openPop(tg, 'file', fileMenu()); return true;
     case 'cv-tog': { const g = d.g; if (S.open.has(g) && !S.all){ S.open.delete(g); if (S.ctx?.card === g) S.ctx = null; } else solo(g); draw(); return true; }
@@ -854,8 +946,8 @@ async function act(a, tg){
     case 'cv-pwrite': S.skWrite = d.id; S.skAdd = null; S.focus = '[data-ce-pwin]'; draw(); return true;
     case 'cv-iwrite': { const keep = S.secEdit; solo(null); S.secEdit = keep; S.ctx = keep ? { sec: keep } : null; S.iwrite = d.id; S.focus = '[data-ce-iwin]'; draw(); return true; }
     case 'cv-iadd': S.iadd = true; S.focus = '[data-ce-iain]'; draw(); return true;
-    case 'cv-kind-new': closePop(); solo(null); S.kind = { id: null, draft: newKind(d.p ?? null), del: false }; S.focus = '#ce-kindcard [data-ce-k=name]'; S.reveal = true; draw(); return true;
-    case 'cv-kind-edit': { closePop(); solo(null); const k = K.kindOf(rec(), d.id); if (!k) return true; S.kind = { id: d.id, draft: structuredClone(k), del: false }; S.focus = '#ce-kindcard [data-ce-k=name]'; S.reveal = true; draw(); return true; }
+    case 'cv-kind-new': closePop(); solo(null); S.kind = { id: null, draft: newKind(d.p ?? null), del: false }; S.focus = '#ce-kindcard [data-ce-k=name]'; S.reveal = tg.closest('#ce-pop') ? 'menu' : 'here'; draw(); return true;
+    case 'cv-kind-edit': { closePop(); solo(null); const k = K.kindOf(rec(), d.id); if (!k) return true; S.kind = { id: d.id, draft: structuredClone(k), del: false }; S.focus = '#ce-kindcard [data-ce-k=name]'; S.reveal = tg.closest('#ce-pop') ? 'menu' : 'here'; draw(); return true; }
     case 'cv-kpreset': readKind(); S.kind.draft = applyPreset(S.kind.draft, d.p); draw(); return true;
     case 'cv-kcolour': readKind(); S.kind.draft.colour = Number(d.i); if (S.kind.id) saveKindNow(); draw(); return true;
     case 'cv-kicon': readKind(); S.kind.draft.icon = d.i; if (S.kind.id) saveKindNow(); draw(); return true;

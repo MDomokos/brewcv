@@ -2031,4 +2031,5 @@ export default {
   'cv.prof.url': 'Link',
   'cv.addProfile': '+ Profil',
   'cv.undoProfile': 'Zmiana profilu',
+  'cv.firstEntry': 'Pierwszy wpis',
 };

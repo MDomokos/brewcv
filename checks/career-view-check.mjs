@@ -8,10 +8,12 @@
 //     mouse's back button keep an unsaved edit, and close what is open when nothing is typed,
 //   - a skill word moved to another group keeps the scroll where it was,
 //   - in a narrow card the hover "+ Add" and "On this resume" both show, side by side,
-//   - + Add brings what it opens into view, focused; the menu has no "line" (a line is added from its job);
+//   - + Add glides Career to what it opens, then the form grows open there (a hover add grows open in place), focused; the menu has no "line" (a line is added from its job);
 //   - a click on the bare ground (around the column, between the cards) closes what is open, an unsaved edit excepted;
 //   - a card or a section opening or closing in place leaves the mat exactly still; the wheel still scrolls the content and the mat;
-//   - "Something else" is Career's own kind editor: a preset, Create, its first entry in Career; a kind's settings, colour and delete there too;
+//   - "Something else" is one step: the kind's setup and its first entry together, where it will live, one Create, one undo step; Cancel
+//     leaves nothing; a kind's settings, colour and delete in Career too;
+//   - the lanes keep their own time: a tall open card on the left does not move the right lane; with every card open each lane is in order;
 //   - the top fade's strength follows the scroll (none at the top, full past the toolbar's height and 16px), and runs from the toolbar's top edge, through its corners, to just under its foot;
 //   - the month picker's months and field read at 4.5:1 on their surface, in Career and in Mark as sent, Tea dark and Coffee light;
 //   - under 860px the timeline is one column.
@@ -198,17 +200,19 @@ async function pixels(ctx, png){
   await page.evaluate(() => document.querySelector('style:last-of-type').remove()); await settle(page);
   ok('scrolled, the fade runs from the toolbar\u2019s top edge (nothing above it) through its corners to just under its foot (content faint there, not gone)', corner.r > 4 && withContent[0] === without[0] && withContent[2] !== without[2], JSON.stringify({ ...corner, same: withContent.map((x, i) => x === without[i]) }));
 
-  // your own kind, in Career: a preset, Create, its first entry; its settings and delete
+  // your own kind, in Career, in one step: the kind's setup and its first entry together, where it will live; Cancel leaves nothing
   const u1 = await undo();
   await page.click('#ce-add'); await settle(page); await page.click('#ce-pop [data-act=cv-kind-new]:not([data-p])'); await settle(page);
-  ok('“Something else” opens Career\u2019s own kind editor, in view, the name focused; the editor never opens', await page.evaluate(() => window.__wb.ui.view === 'record' && !!document.querySelector('#scr #ce-kindcard') && document.activeElement?.dataset.ceK === 'name'));
+  ok('“Something else” opens Career\u2019s own kind card, with the first entry\u2019s fields, in the timeline, the name focused; the editor never opens', await page.evaluate(() => window.__wb.ui.view === 'record' && !!document.querySelector('#scr .ce-tg #ce-kindcard [data-ce-e=pos]') && document.activeElement?.dataset.ceK === 'name'));
+  await page.click('#ce-kindcard [data-act=cv-kcancel]'); await settle(page);
+  ok('Cancel leaves nothing behind', (await undo()) === u1 && !(await page.$('#ce-kindcard')));
+  await page.click('#ce-add'); await settle(page); await page.click('#ce-pop [data-act=cv-kind-new]:not([data-p])'); await settle(page);
   await page.click('#ce-kindcard [data-act=cv-kpreset][data-p=awards]'); await settle(page);
-  ok('a preset fills it: Awards is a list, its organisation “Awarded by”', await page.evaluate(() => document.querySelector('#ce-kindcard [data-ce-k=name]').value === 'Awards' && document.querySelector('#ce-kindcard [name=ce-kplace][value=list]').checked));
+  ok('a list preset (Awards) moves the card to Skills & credentials, “Awarded by” and one date for its first entry', await page.evaluate(() => document.querySelector('#ce-kindcard [data-ce-k=name]').value === 'Awards' && !!document.querySelector('#scr .ce-boxes #ce-kindcard') && !document.querySelector('#ce-kindcard #ce-ke-end')));
+  await page.fill('#ce-kindcard [data-ce-e=pos]', 'Best student design'); await page.fill('#ce-kindcard [data-ce-e=org]', 'Example Society');
   await page.click('#ce-kindcard [data-act=cv-kcreate]'); await settle(page);
-  const kd = await page.evaluate(() => { const k = window.__wb.store.state.record.kinds?.find(x => x.store === 'awards'); return { k: k?.id, add: !!document.querySelector('#scr .ce-box #ce-addcard'), view: window.__wb.ui.view, focus: !!document.activeElement?.closest('#ce-addcard') }; });
-  ok('Create makes the kind (one undo step) and opens its first entry\u2019s card in Career', !!kd.k && kd.add && kd.view === 'record' && kd.focus && (await undo()) === u1 + 1, JSON.stringify(kd));
-  await page.fill('#ce-addcard [data-ce-f=pos]', 'Best student design'); await page.click('#ce-addcard [data-act=cv-addsave]'); await settle(page);
-  ok('…and its first entry is saved there', await page.evaluate(() => window.__wb.store.state.record.awards?.[0]?.title === 'Best student design' && /Best student design/.test(document.querySelector('#scr .ce-doc').textContent)));
+  const kd = await page.evaluate(() => { const k = window.__wb.store.state.record.kinds?.find(x => x.store === 'awards'); return { k: k?.id, entry: window.__wb.store.state.record.awards?.[0]?.title, shown: !!document.querySelector(`#scr .ce-box[data-ce-sec="${k?.id}"]`), view: window.__wb.ui.view }; });
+  ok('one Create makes the kind and its first entry, one undo step, shown in its card in Skills & credentials', !!kd.k && kd.entry === 'Best student design' && kd.shown && kd.view === 'record' && (await undo()) === u1 + 1, JSON.stringify(kd));
   await page.hover(`#scr .ce-box[data-ce-sec="${kd.k}"] h3`); await page.click(`#scr .ce-box[data-ce-sec="${kd.k}"] [data-act=cv-kind-edit]`); await settle(page);
   await page.click('#ce-kindcard [data-act=cv-kcolour][data-i="4"]'); await settle(page);
   ok('a kind\u2019s settings open in Career too, and its colour changes at once', await page.evaluate(k => window.__wb.store.state.record.kinds.find(x => x.id === k)?.colour === 4 && !!document.querySelector('#ce-kindcard'), kd.k));
@@ -216,6 +220,22 @@ async function pixels(ctx, png){
   ok('deleting it asks first, then takes its entries with it', await page.evaluate(() => !window.__wb.store.state.record.kinds?.some(x => x.store === 'awards') && !document.querySelector('#ce-kindcard')));
   await page.keyboard.press('Control+z'); await settle(page);
   ok('one Ctrl+Z brings it back, with its entry', await page.evaluate(() => window.__wb.store.state.record.kinds?.some(x => x.store === 'awards') && window.__wb.store.state.record.awards?.[0]?.title === 'Best student design'));
+  await page.click('#ce-add'); await settle(page); await page.click('#ce-pop [data-act=cv-kind-new][data-p=volunteering]'); await settle(page);
+  await page.fill('#ce-kindcard [data-ce-e=pos]', 'Coach'); await page.fill('#ce-kindcard [data-ce-e=org]', 'Harbour Sailing Club');
+  await page.click('#ce-kindcard [data-act=cv-kcreate]'); await settle(page);
+  ok('a timeline kind (Volunteering) made the same way: its first entry\u2019s card is open in the timeline', await page.evaluate(() => { const v = window.__wb.store.state.record.volunteer?.[0]; return !!v && v.position === 'Coach' && !!document.querySelector(`#scr .ce-tg .ce-card.is-open[data-ce-card="${v.id}"]`); }));
+
+  // the lanes keep their own time: a tall open card on the left does not move the right lane's cards
+  await page.keyboard.press('Escape'); await page.evaluate(() => document.getElementById('scr').scrollTo(0, 0)); await settle(page);
+  const right = () => page.evaluate(() => [...document.querySelectorAll('#scr .ce-card.k2')].map(c => Math.round(c.getBoundingClientRect().top + document.getElementById('scr').scrollTop)));
+  const r0 = await right();
+  await page.click('#scr .ce-card[data-ce-card=hydra] .ce-ch'); await settle(page);
+  const r1 = await right(), tall = await page.evaluate(() => document.querySelector('#scr .ce-card[data-ce-card=hydra]').offsetHeight);
+  ok('a tall open card in the left lane leaves the right lane\u2019s cards where they were', tall > 300 && JSON.stringify(r0) === JSON.stringify(r1), JSON.stringify({ tall, r0, r1 }));
+  await page.click('[data-act=cv-all]'); await settle(page);
+  const lanesOk = await page.evaluate(() => { const lane = k => [...document.querySelectorAll(`#scr .ce-card.k${k}`)].map(c => c.getBoundingClientRect()); const ok = rs => rs.every((r, i) => !i || r.top >= rs[i - 1].bottom - 1); return ok(lane(1)) && ok(lane(2)); });
+  ok('with every card open, each lane keeps its cards in time order, none over another', lanesOk);
+  await page.keyboard.press('Escape'); await settle(page);
 
   // a narrow card under the open resume's picks: the hover "+ Add" and "On this resume" both show
   await page.evaluate(() => document.querySelector('#scr .ce-box[data-ce-sec=languages]').scrollIntoView({ block: 'center' }));
@@ -226,6 +246,28 @@ async function pixels(ctx, png){
     return { label: a.width > 40 && getComputedStyle(sw).fontSize !== '0px', add: getComputedStyle(add).opacity === '1' && b.width > 0, apart: a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top, w: Math.round(r(h).width) };
   });
   ok('in a narrow card the hover add and "On this resume" both show, apart', narrow.label && narrow.add && narrow.apart, JSON.stringify(narrow));
+  ok('no errors', errors.length === 0, errors[0] ?? '');
+  await ctx.close();
+}
+
+// + Add with motion: Career glides to where the entry goes, then its form grows open there; a hover add grows open in place
+{
+  const { ctx, page, errors } = await open(1440, 860, { motion: true });
+  const track = sel => page.evaluate(sel => new Promise(r => { const s = document.getElementById('scr'), out = [], t0 = performance.now(); const f = () => { const el = document.querySelector(sel); out.push([Math.round(s.scrollTop), el ? Math.round(el.getBoundingClientRect().height) : -1]); if (performance.now() - t0 < 2200) requestAnimationFrame(f); else r(out); }; requestAnimationFrame(f); }), sel);
+  await page.click('#ce-add'); await settle(page);
+  const seen = track('#scr .ce-box[data-ce-sec=languages] .ce-inl');
+  await page.click('#ce-pop [data-act=cv-add][data-what=languages]');
+  const frames = await seen;
+  const tops = [...new Set(frames.map(f => f[0]))], stop = frames.findIndex((f, i) => i && f[0] === frames.at(-1)[0] && frames.slice(i).every(g => g[0] === f[0]));
+  const before = frames.slice(0, stop).map(f => f[1]), after_ = frames.slice(stop).map(f => f[1]), full = frames.at(-1)[1];
+  ok('+ Add, a language: Career glides there (many steps, not a jump), and only then the row grows open from nothing to its height', tops.length > 4 && before.every(hh => hh <= 1) && after_.some(hh => hh > 1 && hh < full) && full > 20, JSON.stringify({ steps: tops.length, before: [...new Set(before)], grow: [...new Set(after_)].slice(0, 8), full }));
+  await page.keyboard.press('Escape'); await settle(page);
+  const y0 = await page.evaluate(() => document.getElementById('scr').scrollTop);
+  await page.hover('#scr .ce-box[data-ce-sec=certificates] h3');
+  const seen2 = track('#scr .ce-box[data-ce-sec=certificates] #ce-addcard');
+  await page.click('#scr .ce-box[data-ce-sec=certificates] [data-act=cv-add]');
+  const f2 = await seen2;
+  ok('a hover add grows its form open in place, from nothing', f2.some(f => f[1] > 1 && f[1] < f2.at(-1)[1]) && f2[0][0] === y0, JSON.stringify({ y0, first: f2.slice(0, 3), last: f2.at(-1) }));
   ok('no errors', errors.length === 0, errors[0] ?? '');
   await ctx.close();
 }

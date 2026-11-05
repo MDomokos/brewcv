@@ -11,10 +11,16 @@
 - **Selections are marked with a ring or a tint,** never a coloured bar on a box's left edge.
 - **Your own kinds are made and changed in Career,** from a preset or from scratch; + Add offers Volunteering and Awards while you have none.
 - **About you takes your profiles and a country code,** so Career holds every part of a JSON Resume.
+- **A new kind and its first entry are made in one card,** where the entry will live; one Create, one undo.
+- **+ Add glides to where the entry goes, then opens its form there;** a section's own "+" opens in place.
+- **The timeline's two lanes keep their own time:** an open card no longer pushes the other lane down.
+- **The pencil sits right after the name it edits,** and a section's heading stays on one line.
+- **Career's top fade grows with the scroll** instead of appearing at once.
 
 ### Fixed
 - **A place tab's name shows whole or not at all** while the tabs change, never cut short.
 - **The mat stays still when a card opens in Career,** and the top fade covers the toolbar's corners.
+- **The month picker reads on Career's paper** in a light theme.
 
 ## 1.9.3 - 2026-11-04
 

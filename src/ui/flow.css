@@ -687,7 +687,7 @@ html[data-drink="coffee"] body.has-scr:has(#scr .ce-doc):not(:has(.matroll)) { b
 .scr .ce-dt:hover { background: var(--hover); border-color: var(--line-strong); }
 .scr .ce-dt.is-on { opacity: 1; background: var(--hover); border-color: var(--line-strong); box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 25%, transparent); }
 .scr :is(.ce-ab:hover, .ce-ab:focus-within, .ce-ch:hover, .ce-card:focus-within, .ce-box:hover, .ce-box:focus-within) .ce-dt, .scr .ce-dt:focus-visible { opacity: 1; }
-.scr .ce-abp { position: absolute; right: 8px; top: 8px; z-index: 1; }
+.scr .ce-about .nmw { display: flex; align-items: center; gap: 6px; }      /* the name, its pencil right after it */
 /* hover to add: on a card's header, on the timeline's lane heads, on a job or project; solid, never dashed */
 .scr .ce-hadd { flex: none; display: inline-flex; align-items: center; height: var(--h-sm); margin: 0; padding: 0 9px; border: 1px solid var(--line-strong); border-radius: var(--r-pill); background: var(--surface); color: var(--ink-soft); font: 600 11.5px/1 var(--font-ui); white-space: nowrap; opacity: 0; box-shadow: none; }
 .scr .ce-hadd:is(:hover, :focus-visible, [aria-expanded=true]) { border-color: var(--ink-soft); color: var(--ink); }
@@ -711,27 +711,27 @@ html[data-drink="coffee"] body.has-scr:has(#scr .ce-doc):not(:has(.matroll)) { b
 .scr .ce-card:is(:hover, .is-open) { border-color: var(--line-strong); }
 .scr .ce-card.is-off { opacity: .55; }
 .scr .ce-card.is-off:is(:hover, :focus-within) { opacity: .9; }
-.scr .ce-ch { display: grid; grid-template-columns: minmax(0, 1fr) auto var(--h-sm); column-gap: 10px; align-items: start; padding: 8px 10px 9px 12px; border-radius: var(--r-m); }
+.scr .ce-ch { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: start; padding: 8px 10px 9px 12px; border-radius: var(--r-m); }
 .scr .ce-ch.is-tog { cursor: pointer; }
 .scr .ce-ch.is-tog:hover { background: var(--hover); }
 .scr .ce-ch:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .scr .ce-card.is-open > .ce-ch { border-radius: var(--r-m) var(--r-m) 0 0; }
 .scr .ce-ch .t { display: flex; flex-wrap: wrap; column-gap: 6px; row-gap: 2px; min-width: 0; }
-.scr .ce-ch .t b { flex: 1 0 100%; font-size: 14px; line-height: 1.3; font-weight: 700; }
+.scr .ce-ch .t .tt { flex: 1 0 100%; display: flex; align-items: center; gap: 4px; min-width: 0; }      /* the title, its pencil right after it */
+.scr .ce-ch .t b { flex: 0 1 auto; min-width: 0; font-size: 14px; line-height: 1.3; font-weight: 700; }
 .scr .ce-ch .t small { color: var(--ink-soft); font-size: 12.5px; }
 .scr .ce-ch .ce-sum { flex: 1 0 100%; margin-top: 2px; color: var(--ink-soft); font: normal 11.5px/1.3 var(--font-ui); }
 .scr .ce-ch .d { padding-top: 1px; color: var(--ink-soft); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.scr .ce-ch .ce-dt { grid-column: 3; grid-row: 1; }
 /* the marker on the spine: the kind's icon on its tint, a rounded square as on the cards, centred on the line, which runs behind it */
 .scr .ce-ch .node { position: absolute; left: -40px; top: 4px; display: grid; place-items: center; width: 32px; height: 32px; box-sizing: border-box; border-radius: var(--r-s); background: color-mix(in srgb, var(--hk, var(--hue-6)) var(--hue-tint), var(--surface)); }
 .scr .ce-doc :is(.node, .chip) > .si { width: 24px; height: 24px; }
 .scr .ce-cline { position: absolute; right: 8px; bottom: 6px; }
 /* the right lane: its marker sits in the card, the dates under the title */
 @container (min-width: 860px){
-  .scr .ce-card.k2 .ce-ch { grid-template-columns: 32px minmax(0, 1fr) var(--h-sm); }
+  .scr .ce-card.k2 .ce-ch { grid-template-columns: 32px minmax(0, 1fr); }
   .scr .ce-card.k2 .ce-ch .node { position: static; grid-column: 1; grid-row: 1 / span 3; }
   .scr .ce-card.k2 .ce-ch .t { display: contents; }
-  .scr .ce-card.k2 .ce-ch .t b { grid-column: 2; grid-row: 1; }
+  .scr .ce-card.k2 .ce-ch .t .tt { grid-column: 2; grid-row: 1; }
   .scr .ce-card.k2 .ce-ch .d { grid-column: 2; grid-row: 2; padding: 1px 0 0; }
   .scr .ce-card.k2 .ce-ch .t small { grid-column: 2; grid-row: 3; }
   .scr .ce-card.k2 .ce-ch .ce-sum { grid-column: 2; grid-row: 4; }
@@ -789,26 +789,28 @@ html[data-drink="coffee"] body.has-scr:has(#scr .ce-doc):not(:has(.matroll)) { b
 
 /* Skills & credentials: Skills the column's width, the rest as cards in up to three columns */
 .scr .ce-boxes { display: grid; gap: 12px; }
-.scr .ce-cols { columns: 3 260px; column-gap: 12px; }
+.scr .ce-cols { columns: 3 320px; column-gap: 12px; }
 .scr .ce-cols > .ce-box { break-inside: avoid; margin: 0 0 12px; }
 .scr .ce-box { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-l); background: var(--surface); box-shadow: var(--elev-low); }
 .scr .ce-box.is-editing { column-span: all; border-color: var(--accent); }
 .scr .ce-box.is-off :is(.ce-iw, .ce-sg) { color: var(--ink-soft); }
-.scr .ce-box h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: var(--h-row); margin: 0 0 8px; font: 700 14px/1.2 var(--font-ui); }
+.scr .ce-box h3 { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px 8px; min-height: var(--h-row); margin: 0 0 8px; font: 700 14px/1.2 var(--font-ui); }
 .scr .ce-box h3 .chip { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-s); background: color-mix(in srgb, var(--hk) var(--hue-tint), var(--surface)); }
-.scr .ce-box h3 .n { margin-right: auto; color: var(--ink-soft); font-size: 12px; font-weight: 600; }
+.scr .ce-box h3 .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scr .ce-box h3 .n { flex: none; color: var(--ink-soft); font-size: 12px; font-weight: 600; }
+.scr .ce-box h3 .ce-tools { flex: none; display: inline-flex; gap: 2px; margin-right: auto; }
+.scr .ce-box h3 > :is(.tw, .ce-sw, .ce-hadd) { flex: none; }
+.scr .ce-box h3 .tw .nn { display: none; }
 .scr .ce-box h3 .tw { color: var(--ink-soft); font: 600 11px/1 var(--font-ui); white-space: nowrap; }
-/* "On this resume" and "+ Add" share the header's end; in a narrow card the add goes under the title, so both are read */
+/* the head is one line: the title, its count and pencil, then "On this resume" and "+ Add" at its end; a narrow card's add is its "+" alone */
 .scr .ce-sw { display: inline-flex; align-items: center; gap: 6px; height: var(--h-sm); color: var(--ink); font: 600 12px/1 var(--font-ui); white-space: nowrap; cursor: pointer; }
-/* the add keeps its place while hidden, so showing it moves nothing; in a narrow card it is its "+" alone, beside "On this resume" */
+/* the add keeps its place while hidden, so showing it moves nothing */
 .scr .ce-box { container-type: inline-size; }
 .scr .ce-box h3 .ce-hadd { gap: 4px; padding: 0 8px; }
-.scr .ce-box h3 .ce-hadd { order: 7; }
-.scr .ce-box h3 .ce-sp { order: 8; }
-@container (max-width: 380px){
-  .scr .ce-box h3:has(.ce-sw) .ce-hadd { width: var(--h-sm); padding: 0; justify-content: center; }
-  .scr .ce-box h3:has(.ce-sw) .ce-hadd .w { display: none; }
-  .scr .ce-box h3 .ce-sw { order: 10; flex-basis: 100%; padding-left: 40px; }      /* its own row under the title */
+@container (max-width: 400px){
+  .scr .ce-box h3 .ce-hadd { width: var(--h-sm); padding: 0; justify-content: center; }
+  .scr .ce-box h3 .ce-hadd .w, .scr .ce-box h3 .tw .w { display: none; }
+  .scr .ce-box h3 .tw .nn { display: inline; }
 }
 .scr .ce-sg { display: flex; align-items: center; gap: 12px; padding: 5px 0; border-top: 1px solid var(--line); }
 .scr .ce-sg:first-of-type { border-top: 0; }
@@ -947,3 +949,13 @@ body:not([data-phone=true]) #head .docname.is-file { flex-direction: column; gap
 .scr .ce-profs { display: grid; gap: 4px; }
 .scr .ce-prof { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr) var(--h-sm); gap: 6px; align-items: center; }
 .scr .ce-kpl input { width: auto; height: auto; margin: 0; accent-color: var(--ink); }
+
+/* the lanes in their own time (careerview.js flowLanes): the year labels and the cards placed by the layout; the yearly rows keep their
+   columns (so the lanes are measured in place) with no height; the right lane's dotted rule drawn once */
+.scr .ce-bands { position: relative; }
+.scr .ce-bands.ce-flow > .ce-yrow { height: 0; }
+.scr .ce-bands.ce-flow > .ce-yrow > .ce-lane { border-left-color: transparent; }
+.scr .ce-bands.ce-flow > .ce-yr { position: absolute; left: 0; margin-top: 0; margin-bottom: 0; }
+.scr .ce-bands.ce-flow .ce-lane:first-child > .ce-card { position: absolute; left: var(--ce-l0); margin: 0; box-sizing: border-box; }
+.scr .ce-bands.ce-flow .ce-lane:last-child > .ce-card { position: absolute; left: var(--ce-l1); margin: 0; box-sizing: border-box; }
+.scr .ce-bands.ce-flow::after { content: ""; position: absolute; left: var(--ce-rx, 0px); top: 0; bottom: 0; border-left: 2px dotted var(--line-strong); pointer-events: none; }
