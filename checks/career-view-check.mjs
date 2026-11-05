@@ -15,7 +15,7 @@
 //     leaves nothing; a kind's settings, colour and delete in Career too;
 //   - the lanes keep their own time: a tall open card on the left does not move the right lane; with every card open each lane is in order;
 //   - the top fade's strength follows the scroll (none at the top, full past the toolbar's height and 16px), and runs from the toolbar's top edge, through its corners, to just under its foot;
-//   - the month picker's months and field read at 4.5:1 on their surface, in Career and in Mark as sent, Tea dark and Coffee light;
+//   - every kind of field reads at 4.5:1 on its surface in Career and the Editor's About you; the month picker's months and field too, in Career and in Mark as sent, Tea dark and Coffee light;
 //   - under 860px the timeline is one column.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing.
 
@@ -282,6 +282,35 @@ const CONTRAST = () => {
   if (!m || !f) return null;
   return { months: Math.min(...[...m.querySelectorAll('.mpgrid button:not(:disabled), .mpyear output')].map(b => ratio(parse(getComputedStyle(b).color), bgOf(b)))), field: ratio(parse(getComputedStyle(f).color), bgOf(f)) };
 };
+// every kind of field reads on its surface (4.5:1): text, e-mail, phone, a few lines, a month, a list; in Career and in the Editor's About you
+const FIELDS = root => {
+  const parse = c => { const m = c.match(/[\d.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m[3] ?? 1 }; };
+  const bgOf = el => { const layers = []; for (let n = el; n; n = n.parentElement){ const c = parse(getComputedStyle(n).backgroundColor); if (c.a > 0){ layers.push(c); if (c.a >= 1) break; } } let o = { r: 255, g: 255, b: 255 }; for (const c of layers.reverse()) o = { r: c.r * c.a + o.r * (1 - c.a), g: c.g * c.a + o.g * (1 - c.a), b: c.b * c.a + o.b * (1 - c.a) }; return o; };
+  const lum = c => { const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }; return .2126 * f(c.r) + .7152 * f(c.g) + .0722 * f(c.b); };
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+  const kind = e => (e.matches('.mpbtn') ? 'month' : e.matches('.ddbtn') ? 'select' : e.tagName === 'TEXTAREA' ? 'textarea' : e.type || 'text');
+  const out = {};
+  for (const e of document.querySelectorAll(`${root} :is(input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea, .mpbtn, .ddbtn)`)){
+    if (!e.offsetParent) continue;
+    const r = ratio(parse(getComputedStyle(e).color), bgOf(e)), k = kind(e);
+    out[k] = Math.min(out[k] ?? 99, Math.round(r * 100) / 100);
+  }
+  return out;
+};
+for (const look of [['tea', 'dark'], ['coffee', 'light'], ['tea', 'light'], ['coffee', 'dark']]){
+  const { ctx, page } = await open(1440, 860, { look });
+  await page.hover('#ce-about .ce-ab'); await page.click('#ce-about [data-act=cv-about]'); await settle(page);
+  const about = await page.evaluate(FIELDS, '#scr .ce-aboutform');
+  await page.keyboard.press('Escape'); await page.click('#ce-add'); await page.click('#ce-pop [data-act=cv-add][data-what=work]'); await settle(page);
+  const add = await page.evaluate(FIELDS, '#scr #ce-addcard');
+  await page.keyboard.press('Escape'); await page.evaluate(() => document.querySelector('#scr .ce-box[data-ce-sec=languages]').scrollIntoView()); await page.hover('#scr .ce-box[data-ce-sec=languages] h3'); await page.click('#scr .ce-box[data-ce-sec=languages] [data-act=cv-secedit]'); await settle(page);
+  const langs = await page.evaluate(FIELDS, '#scr .ce-box[data-ce-sec=languages]');
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'header' }; window.__wb.setView(null); }); await settle(page);
+  const editor = await page.evaluate(FIELDS, '#body');
+  const all = { ...about, ...add, ...langs }, kinds = ['text', 'email', 'tel', 'textarea', 'month', 'select'];
+  ok(`${look.join(' ')}: every kind of field reads on its surface at 4.5:1 (text, e-mail, phone, a few lines, a month, a list), in Career and in the Editor's About you`, kinds.every(k => all[k] >= 4.5) && Object.values(editor).length > 2 && Object.values(editor).every(v => v >= 4.5), JSON.stringify({ career: all, editor }));
+  await ctx.close();
+}
 for (const look of [['tea', 'dark'], ['coffee', 'light'], ['tea', 'light']]){
   const { ctx, page } = await open(1440, 860, { look });
   await page.click('#ce-add'); await page.click('#ce-pop [data-act=cv-add][data-what=work]'); await settle(page);
