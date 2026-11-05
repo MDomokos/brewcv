@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **The tea garden is livelier and lighter.** Its leaves and creatures keep their size against the page on any screen, come and go wholly off it, and share one light with the page. A snail that comes out after rain, leaves a trail, draws in its eyes as you near and hides in its shell at a touch; a ladybug that flies off; and leaves that flutter when brushed, ride the page as it zooms, and blow off it in a puff from your click or typing.
+
 ## 1.10.0 - 2026-11-05
 
 ### Name card and resumes

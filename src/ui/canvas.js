@@ -19,7 +19,8 @@ const easeOut = p => 1 - Math.pow(1 - p, 3);
 const IDLE_MS = 140;                                    // the wheel or the hand has stopped
 
 export const PAGES_MOVED = 'brewcv:pages-moved';        // fired on document once the pages have come to rest in a new place
-export const PAGES_MOVING = 'brewcv:pages-moving';      // fired on document as they start to move, before they have; body.is-moving lasts until PAGES_MOVED
+export const PAGES_MOVING = 'brewcv:pages-moving';      // fired on document as they start to move, before they have (detail.at: a zoom's anchor on the screen, else null); body.is-moving lasts until PAGES_MOVED
+export const PAGES_STEP = 'brewcv:pages-step';          // fired on document each time they are put somewhere while moving, and once as they come to rest (is-moving off)
 
 export function initCanvas(C){
   const { ui, host, box } = C;
@@ -31,7 +32,7 @@ export function initCanvas(C){
   const linux = onLinux();
   document.documentElement.classList.toggle('is-linux', linux);
   // the pages move or rest: nothing on them glides against the camera (sheet.camMoving), and on Linux their shadows are shed
-  const shed = on => { document.body.classList.toggle('is-moving', on); C.sheet.camMoving?.(on); if (linux) C.sheet.setMoving(on); };
+  const shed = on => { document.body.classList.toggle('is-moving', on); C.sheet.camMoving?.(on); if (linux) C.sheet.setMoving(on); if (!on) document.dispatchEvent(new Event(PAGES_STEP)); };
   const dials = { magnet: MAGNET, bounce: BOUNCE };
 
   const phone = () => innerWidth < PHONE_MAX;
@@ -67,7 +68,7 @@ export function initCanvas(C){
     ms.pk = cam.k; ms.px = cam.x; ms.py = cam.y;
     const s = ms.s, w = s <= 1 ? 1 : Math.pow(Math.max(0, 1 - Math.log(s) / .12), 2);      // out from the fit view the page is in the middle, and so is the table; just in from it, it comes home
     const ox = ms.ox + (cx * (1 - s) - ms.ox) * w, oy = ms.oy + (cy * (1 - s) - ms.oy) * w;
-    matT = { ox, oy, s };
+    matT = { ox, oy, s, ppm: MM * ref.k };      // ppm: #gworld's px in a millimetre of the page
     if (gw) gw.style.transform = `translate(${ox.toFixed(2)}px, ${oy.toFixed(2)}px) scale(${s.toFixed(4)})`;
     const coffee = drinkNow() === 'coffee', V = { w: innerWidth, h: innerHeight }, ppm = MM * ref.k;      // ppm: mat px in a millimetre
     const box = (a, b) => ({ l: ox + s * a * V.w, t: oy + s * a * V.h, r: ox + s * b * V.w, b: oy + s * b * V.h });
@@ -123,15 +124,16 @@ export function initCanvas(C){
   }
   // ---- placing the sheet ----
   // the pages start to move: said once, as the ease starts (go) or the first step is put, so nothing on them glides against the camera (the plate, sheet.camMoving)
-  function startMoving(){ if (!moving){ moving = true; document.dispatchEvent(new CustomEvent(PAGES_MOVING)); shed(true); } }
+  function startMoving(next){ if (!moving){ moving = true; document.dispatchEvent(new CustomEvent(PAGES_MOVING, { detail: { at: next && Math.abs(next.k - cam.k) > 1e-6 ? zoomAnchor : null } })); shed(true); } }
   function put(next){
-    startMoving();
+    startMoving(next);
     cam = next; ui.cam = cam;
     host.style.left = '0px'; host.style.top = '0px';
     host.style.transform = `translate(${cam.x.toFixed(2)}px, ${cam.y.toFixed(2)}px) scale(${cam.k.toFixed(5)})`;
     ui.zoom = fit ? Math.round((cam.k / fit.k) * 1000) / 1000 : 1;
     follow();
     matMove();
+    document.dispatchEvent(new Event(PAGES_STEP));
     C.moved?.();
   }
   // which page is bright follows what is on screen; nothing is faded while all the pages are shown in full
@@ -151,7 +153,7 @@ export function initCanvas(C){
   function go(to, { spring = false, ms = dur('travel') } = {}){
     clearTimeout(movedT);
     if (reduced() || !ui.ready){ stop(); put(to); settled(); return; }
-    startMoving();
+    startMoving(to);
     motion = { from: { ...cam }, to, t0: performance.now(), ms, spring, sx: { x: cam.x, v: 0 }, sy: { x: cam.y, v: 0 }, last: performance.now() };
     if (!raf) raf = requestAnimationFrame(frame);
   }
@@ -244,6 +246,7 @@ export function initCanvas(C){
     if (!keepZoom && cam.k >= ws - 1e-3){ ensureVisible(r); return false; }
     const k = keepZoom ? cam.k : ws;
     const next = keepPageEdge(hardCam(centreOn(geo, view, k, r.left + r.width / 2, r.top + r.height / 2), geo, view), geo, view, r);
+    zoomAnchor = { x: cam.x + (r.left + r.width / 2) * cam.k, y: cam.y + (r.top + r.height / 2) * cam.k };      // it zooms about the block
     free = true; want = null; rememberView();
     if (keepZoom && onLinux()){ stop(); put(next); settled(); return false; }      // the next line, already zoomed: software painting redraws the page for every step of a glide, so it is there at once
     go(next);

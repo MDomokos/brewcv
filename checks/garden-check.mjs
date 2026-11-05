@@ -3,12 +3,16 @@
 // The tea garden (src/ui/garden.js) in Chromium, on the fictional example data. Needs playwright and a Chromium.
 // The garden's test hooks exist only behind ?garden-check[=idle seconds] (window.__wb.garden); a normal page has none.
 // ONLY=flow,rain runs only those scenarios. Each scenario has a page of its own and they run side by side, because leaves fall slowly.
-//  - the start is clean; a wave spreads out (the closest pair about a leaf apart); leaves land on the page and a stroke moves them;
+//  - the start is clean; a wave spreads out (no two leaves more than a third over each other); leaves land on the page and a stroke moves them;
 //    swept leaves come to rest; moving the mouse back clears nothing, a click into the resume or a key press clears the page, and
 //    the settled leaves fade either way; the page stays clear when the pages move (two pages side by side);
 //  - rain makes wet spots, and the page dries on return while the mat goes on drying;
 //  - the ladybug comes in from the side and leaves by it, without fading; one with nowhere to come in gives way; the snail hides;
-//    petals come as a cluster; the full pause starts and wakes;
+//    a startled ladybug opens its wings and lifts; a leaf lifts as it leaves the page; a leaf lying still never moves when another lands
+//    or stops beside it (bump); what lies on a page stays on its point of the page, frame for frame, while the view zooms in to
+//    write (zoom); a click is a puff: a leaf leaves by the side it lies from the click (about straight above it: its nearer
+//    side), far ones go too, a key blows from the line typed in, a leaf never crosses the next page, and a click on the mat
+//    scatters the leaves near it, lands none on a page and keeps the rest going (puff, pages); a shower brings out a snail; petals come as a cluster; the full pause starts and wakes;
 //  - coffee rests it and tea brings it back as it was; the setting, reduced motion, a phone and the start screen load nothing;
 //  - nothing from the garden prints or reaches the page's frame; an idle editor runs no animation frame; the axe pass is clean
 //    with the garden out (AXE_CORE=/path/to/axe.min.js, else skipped).
@@ -67,9 +71,10 @@ const leaves = page => page.evaluate(() => {
   const col = document.getElementById('col').getBoundingClientRect().left;   // what lies under the panel is not seen
   const EDGE = 24;                                                            // a leaf that hangs over the edge by less than this is off the page
   return [...document.querySelectorAll('#garden .g-thing.g-leaf')].map(e => { const r = e.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2;
-    return { x, y, on: x < col && pg.some(q => x > q.l + EDGE && x < q.r - EDGE && y > q.t && y < q.b), o: Number(getComputedStyle(e).opacity), tf: e.style.transform }; });
+    return { x, y, on: x < col && pg.some(q => x > q.l + EDGE && x < q.r - EDGE && y > q.t && y < q.b), o: Number(getComputedStyle(e).opacity), faded: e.classList.contains('faded'), tf: e.style.transform, len: Math.max(e.offsetWidth, e.offsetHeight) * (+(e.style.transform.match(/scale\([-\d.]+, ([\d.]+)\)/)?.[1] ?? 1)) }; });
 });
-const closest = ls => { let m = 1e9; for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) m = Math.min(m, Math.hypot(ls[i].x - ls[j].x, ls[i].y - ls[j].y)); return m; };
+// the closest pair as a share of their mean length: 1 is end to end, two thirds overlaps a third
+const closestShare = ls => { let m = 1e9; for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) m = Math.min(m, Math.hypot(ls[i].x - ls[j].x, ls[i].y - ls[j].y) / ((ls[i].len + ls[j].len) / 2)); return m; };
 // a point on a page at least `far` px from every leaf and wet spot, to click or move the mouse without touching one
 const freeSpot = async (page, far = 70) => {
   const [p] = await pagesNow(page);
@@ -92,9 +97,9 @@ async function flow(){
   await landed(page);
   const ls = await leaves(page);
   ok('two waves: most of 13 leaves lie there (the wind takes some off the screen)', ls.length >= 6 && ls.length <= 13, String(ls.length));
-  ok('a wave spreads out: the closest pair is at least about a leaf apart', closest(ls) >= 26, closest(ls).toFixed(0) + ' px');
+  ok('a wave spreads out: the closest pair overlaps a third of a leaf at most (with a little slack for the slide on landing)', closestShare(ls) >= .58, closestShare(ls).toFixed(2) + ' of a leaf apart');
   ok('leaves land on the page too', ls.filter(l => l.on).length > 0, `${ls.filter(l => l.on).length} on it`);
-  ok('while you rest the leaves are fully there', ls.every(l => l.o >= 0.95), String(Math.min(...ls.map(l => l.o))));
+  ok('while you rest the leaves are fully there', ls.every(l => l.o >= 0.95 && !l.faded), String(Math.min(...ls.map(l => l.o))));
   // the print gate, with things out
   await page.emulateMedia({ media: 'print' });
   ok('nothing from the garden prints', await page.evaluate(() => getComputedStyle(document.getElementById('garden')).display === 'none' && getComputedStyle(document.querySelector('.g-dapple')).display === 'none'));
@@ -107,14 +112,16 @@ async function flow(){
   await sleep(3500);
   const back = await leaves(page);
   ok('moving the mouse back clears nothing on the page', back.filter(l => l.on).length === before, `${before} → ${back.filter(l => l.on).length}`);
-  ok('the settled leaves fade into the mat', back.every(l => l.o <= 0.45), String(Math.max(...back.map(l => l.o))));
+  ok('the settled leaves fade into the mat', back.every(l => l.faded), back.map(l => l.faded).join(' '));
   await page.mouse.click(fx, fy);
+  let lifted = false; for (let i = 0; i < 40 && !lifted; i++){ await sleep(150); lifted = await page.evaluate(() => !!document.querySelector('#garden .g-thing.g-leaf.falling')); }
+  ok('leaves lift (the raised layer) as they leave the page', lifted);
   await clear(page);
   const after = await leaves(page);
   ok('a click into the resume clears the page', after.filter(l => l.on).length === 0, `${after.filter(l => l.on).length} left on it`);
   ok('…and the leaves are not gone, only moved off it', after.length > 0, `${after.length} lying`);
-  let faded = after; for (let i = 0; i < 20 && faded.filter(l => l.o <= 0.45).length < faded.length * 0.8; i++){ await sleep(500); faded = await leaves(page); }
-  ok('…and they stay faded while you work', faded.filter(l => l.o <= 0.45).length >= faded.length * 0.8, faded.map(l => l.o.toFixed(2)).join(' '));
+  let faded = after; for (let i = 0; i < 20 && faded.filter(l => l.faded).length < faded.length * 0.8; i++){ await sleep(500); faded = await leaves(page); }
+  ok('…and they stay faded while you work', faded.filter(l => l.faded).length >= faded.length * 0.8, faded.map(l => l.faded).join(' '));
   s.done(); await s.context.close();
 }
 
@@ -235,15 +242,23 @@ async function creatures(){
   ok('it comes in from the side of the screen', xs[0] < 20 && xs.at(-1) > xs[0] + 30, JSON.stringify(xs));
   const b = await page.evaluate(() => { const r = document.querySelector('.g-bug').getBoundingClientRect(); return [r.x + 8, r.y + 8]; });
   await page.mouse.move(b[0] + 50, b[1]); await page.mouse.move(b[0] + 20, b[1]);
+  await sleep(300);
+  const fly = await page.evaluate(() => {
+    const e = document.querySelector('.g-bug'), at = x => (x.style.transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/) ?? []).slice(1).map(Number);
+    return { cls: e.classList.contains('flying'), wing: getComputedStyle(e.querySelector('.wg')).display, dy: at(document.querySelector('.g-shade-bug'))[1] - at(e)[1] };
+  });
+  ok('a startled ladybug opens its wing cases, shows its wings and lifts (its shadow falls farther)', fly.cls && fly.wing === 'block' && fly.dy > 8, JSON.stringify(fly));
   const seen = [];
-  for (let k = 0; k < 24; k++){ await sleep(500); const q = await page.evaluate(() => { const e = document.querySelector('.g-bug'); return e ? [Math.round(e.getBoundingClientRect().x), getComputedStyle(e).opacity] : null; }); if (!q) break; seen.push(q); }
-  ok('it runs when the pointer comes near, and leaves by the side it came in', seen.length < 24 && Math.min(...seen.map(q => q[0])) < 20, JSON.stringify(seen));
+  // sampled often: a startled one flies, and can cross the margin in well under a second
+  for (let k = 0; k < 120; k++){ await sleep(100); const q = await page.evaluate(() => { const e = document.querySelector('.g-bug'); return e ? [Math.round(e.getBoundingClientRect().x), getComputedStyle(e).opacity] : null; }); if (!q) break; seen.push(q); }
+  ok('it runs when the pointer comes near, and leaves by the side it came in', seen.length > 0 && seen.length < 120 && Math.min(...seen.map(q => q[0])) < 20, JSON.stringify(seen.filter((q, i) => i % 3 === 0)));
   ok('…without fading', seen.every(q => q[1] === '1'));
   ok('…and is gone', await page.evaluate(() => !document.querySelector('.g-bug') && ![...document.querySelectorAll('#garden *')].some(e => e.className?.toString().includes('g-shade-bug'))));
   // the snail hides in its shell
   ok('the snail comes', await hook(page, 'snail') === true);
-  await sleep(2500);
-  const sn = await page.evaluate(() => { const r = document.querySelector('.g-thing.g-snail').getBoundingClientRect(); return [r.x + 17, r.y + 11]; });
+  // it is drawn at its real size and comes in slowly: wait until it is in view
+  await page.waitForFunction(() => document.querySelector('.g-thing.g-snail')?.getBoundingClientRect().x > 10, null, { timeout: 60000 });
+  const sn = await page.evaluate(() => { const r = document.querySelector('.g-thing.g-snail').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
   await page.mouse.move(sn[0] + 40, sn[1]); await page.mouse.move(sn[0] + 20, sn[1]);
   await sleep(300);
   ok('the snail hides when the pointer comes near', await page.evaluate(() => document.querySelector('.g-thing.g-snail').classList.contains('hid')));
@@ -251,6 +266,144 @@ async function creatures(){
   await page.evaluate(() => window.__wb.canvas.zoomTo(3));
   await sleep(1500);
   ok('with no margin beside the pages the butterfly gives way (the moment goes to the next card)', await hook(page, 'butterfly') === false);
+  s.done(); await s.context.close();
+}
+
+// ---- a leaf lying still never moves because another lands on it or stops beside it ----
+async function bump(){
+  const ok = reporter('bump'), s = await open(ok), { page } = s;
+  await ready(page);
+  await park(page);
+  await hook(page, 'rest');
+  const at = () => page.evaluate(() => [...document.querySelectorAll('#garden .g-thing.g-leaf')].map(e => ({ tf: e.style.transform, fall: e.classList.contains('falling') })));
+  const xy = l => l.tf.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/).slice(1).map(Number);
+  const wait = async () => { for (let i = 0; i < 120 && (await at()).some(l => l.fall); i++) await sleep(300); await sleep(3000); };
+  await hook(page, 'leaf', 200, 150, 330); await wait();
+  const [a] = await at(), m = xy(a);
+  await hook(page, 'leaf', m[0] + 6, 150, 330 + 4); await wait();
+  const two = await at(), b = xy(two[1]);
+  ok('a leaf landing on one that lies there does not move it', two.length === 2 && two[0].tf === a.tf, `${a.tf} → ${two[0].tf}`);
+  ok('…it steered to a spot of its own in the air, over it by a third at most', Math.hypot(b[0] - m[0], b[1] - m[1]) > 14, Math.hypot(b[0] - m[0], b[1] - m[1]).toFixed(0) + ' px');
+  await hook(page, 'leaf', m[0] - 8, 150, 330 - 6); await wait();
+  const three = await at();
+  ok('a third one landing among them moves neither', three.length === 3 && three[0].tf === a.tf && three[1].tf === two[1].tf);
+  await sleep(2500);
+  ok('…and once down, none of them shifts again', (await at()).map(l => l.tf).join('|') === three.map(l => l.tf).join('|'));
+  s.done(); await s.context.close();
+}
+
+// ---- what lies on a page moves with it, frame for frame, while the view zooms in to write ----
+async function zoom(){
+  const ok = reporter('zoom'), s = await open(ok), { page } = s;
+  await ready(page);
+  await park(page);
+  await hook(page, 'rest');
+  const [p] = await pagesNow(page);
+  await hook(page, 'leaf', p.r - 90, -30, p.t + 260); await landed(page);
+  const lay = (await leaves(page)).find(l => l.on);
+  ok('a leaf lies on the page', !!lay);
+  if (lay){
+    await hook(page, 'work', p.l + 10, p.t + 250);      // the pointer at the far side: the clear's front reaches the leaf late
+    const r = await page.evaluate(() => new Promise(done => {
+      const fr = document.querySelector('#sheet iframe'), leaf = document.querySelector('#garden .g-thing.g-leaf');
+      const at = () => { const a = leaf.getBoundingClientRect(), f = fr.getBoundingClientRect(); return { x: a.x + a.width / 2, y: a.y + a.height / 2, fl: f.left, ft: f.top, k: f.width / fr.offsetWidth, tf: leaf.style.transform }; };
+      const s0 = at(), P = { x: (s0.x - s0.fl) / s0.k, y: (s0.y - s0.ft) / s0.k }, out = [], t0 = performance.now();
+      window.__wb.canvas.writeTo({ left: 60, top: 80, width: 300, height: 20 }, 160);
+      // until the clear's front moves the leaf itself: the leaf's centre against the point of the page it lay on
+      const tick = () => {
+        const n = at(); if (n.tf === s0.tf && Math.abs(n.k - s0.k) > 1e-3) out.push(Math.hypot(n.x - (n.fl + P.x * n.k), n.y - (n.ft + P.y * n.k)));
+        if (n.tf === s0.tf && performance.now() - t0 < 2000) requestAnimationFrame(tick); else done({ frames: out.length, max: +Math.max(0, ...out).toFixed(2), k0: s0.k, k: n.k });
+      };
+      requestAnimationFrame(tick);
+    }));
+    ok('…and while the view zooms in to write, it stays on the point of the page under it, frame for frame', r.frames >= 3 && r.max <= 2, JSON.stringify(r));
+    await sleep(3000);
+    ok('…and once the view rests it is back on the mat', await page.evaluate(() => document.getElementById('gpage').children.length === 0 && document.querySelectorAll('#gworld .g-thing.g-leaf').length === 1));
+  }
+  s.done(); await s.context.close();
+}
+
+// ---- the puff ----
+// leaves dropped one by one (each just above where it lands, so they come down quickly), then named k0, k1, … in that order
+const drop = async (page, pts) => { for (const [x, y] of pts){ await hook(page, 'leaf', x - 15, y - 50, y - 7); await landed(page); } await page.evaluate(() => [...document.querySelectorAll('#garden .g-thing.g-leaf')].forEach((e, i) => { e.dataset.k ??= `k${i}`; })); };
+const named = page => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#garden .g-thing.g-leaf')].map(e => { const r = e.getBoundingClientRect(); return [e.dataset.k, { x: r.x + r.width / 2, y: r.y + r.height / 2, tf: e.style.transform, o: Number(getComputedStyle(e).opacity) * (e.classList.contains('faded') ? .38 : 1) }]; })));
+// until nothing moves: a far leaf's breeze starts late and a long way can take two seconds, so a clear page is not yet a settled one
+const settled = async page => { let a = null; for (let i = 0; i < 30; i++){ await sleep(1000); const b = await page.evaluate(() => [...document.querySelectorAll('#garden .g-thing.g-leaf')].map(e => e.style.transform + e.className).join('|')); if (b === a && !b.includes('falling')) return; a = b; } };
+const side = (l, p) => !l ? 'gone' : l.x < p.l ? 'left' : l.x > p.r ? 'right' : 'on';
+async function puff(){
+  const ok = reporter('puff'), s = await open(ok, { ctx: { viewport: { width: 1600, height: 900 } } }), { page } = s;
+  await ready(page);
+  await park(page);
+  await hook(page, 'rest');
+  const [p] = await pagesNow(page), W = p.r - p.l, O = [p.l + W * .8, p.t + 330];
+  // k0 left of the click though nearer the right edge; k1 straight above the click; k2 far (over 2.5 R) below and to the left
+  await drop(page, [[p.l + W * .58, O[1] + 10], [O[0], O[1] - 150], [p.l + W * .3, Math.min(p.b - 40, O[1] + 420)]]);
+  const before = await named(page);
+  ok('three leaves lie on the page', ['k0', 'k1', 'k2'].every(k => side(before[k], p) === 'on'), JSON.stringify(before));
+  O[0] = before.k1.x;      // a falling leaf sways: straight below where it came down, not where it was dropped
+  await hook(page, 'click', ...O);
+  await settled(page);
+  const after = await named(page);
+  ok('a leaf left of the click leaves by the left edge (though the right was nearer)', side(after.k0, p) === 'left', side(after.k0, p));
+  ok('a leaf straight above the click leaves by its nearer edge', side(after.k1, p) === 'right', side(after.k1, p));
+  ok('a far leaf is still cleared', side(after.k2, p) === 'left' || side(after.k2, p) === 'right', side(after.k2, p));
+  // a key blows from the line typed in: the pointer is far right, so from it both would go left
+  const line = await page.evaluate(() => { const fr = document.querySelector('#sheet iframe'), r = fr.getBoundingClientRect(), k = r.width / fr.offsetWidth;
+    const li = [...fr.contentDocument.querySelectorAll('.document .page li')].find(e => { const q = e.getBoundingClientRect(); return q.top > 250 && q.width > 200; }); li.dataset.typed = '1';
+    const q = li.getBoundingClientRect(); return [r.left + (q.left + q.width / 2) * k, r.top + (q.top + q.height / 2) * k]; });
+  await sleep(1300);      // past the last clear
+  await drop(page, [[line[0] - 120, line[1] + 50], [line[0] + 120, line[1] + 50]]);
+  await park(page);
+  await page.evaluate(() => document.querySelector('#sheet iframe').contentDocument.querySelector('[data-typed]').dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true })));
+  await settled(page);
+  const typed = await named(page);
+  ok('a key press blows from the line typed in: the leaves either side of it go their own ways', side(typed.k3, p) === 'left' && side(typed.k4, p) === 'right', `${side(typed.k3, p)} ${side(typed.k4, p)}`);
+  // a press on the mat while resting: the leaves near it scatter, none onto the page, the far one and the rest stay as they are
+  await hook(page, 'rest');
+  await drop(page, [[p.l - 130, p.t + 310], [p.l - 160, p.t + 270], [p.l - 140, p.t + 660]]);
+  const m0 = await named(page);
+  // pressed just right of where the two near ones came down (they sway as they fall), so they scatter away from the page, not toward it
+  const M = [Math.min(p.l - 20, Math.max(m0.k5.x, m0.k6.x) + 25), (m0.k5.y + m0.k6.y) / 2];
+  await page.evaluate(([x, y]) => document.getElementById('pages').dispatchEvent(new PointerEvent('pointerdown', { clientX: x, clientY: y, bubbles: true, isPrimary: true })), M);
+  await sleep(2500);
+  const m1 = await named(page), moved = k => Math.hypot(m1[k].x - m0[k].x, m1[k].y - m0[k].y);
+  ok('a click on the mat scatters the leaves near it a little', moved('k5') > 8 && moved('k5') < 75 && moved('k6') > 8 && moved('k6') < 75, `${moved('k5').toFixed(0)} ${moved('k6').toFixed(0)} px`);
+  ok('…not the far ones', m1.k7.tf === m0.k7.tf);
+  ok('…none comes down on the page', side(m1.k5, p) === 'left' && side(m1.k6, p) === 'left');
+  ok('…and the rest goes on: nothing fades', ['k5', 'k6', 'k7'].every(k => m1[k].o >= .95), ['k5', 'k6', 'k7'].map(k => m1[k].o).join(' '));
+  s.done(); await s.context.close();
+}
+
+// ---- two pages side by side: a leaf never crosses the next page ----
+async function pages(){
+  const ok = reporter('pages'), s = await open(ok, { ctx: { viewport: { width: 2560, height: 1100 } } }), { page } = s;
+  await ready(page);
+  await page.evaluate(() => window.__wb.resumes.open('Medtech Lisboa - Mechanical Engineer.json')); await sleep(2500);
+  const pp = await pagesNow(page);
+  ok('two pages side by side', pp.length === 2 && pp[1].l > pp[0].r, JSON.stringify(pp));
+  if (pp.length === 2){
+    await park(page);
+    await hook(page, 'rest');
+    const [a, b] = pp, gap = b.l - a.r;
+    // near the gap on page 1, the click to its left: it is blown toward page 2
+    // (far enough in that a falling leaf's sway, which is in real millimetres and so wider on a big screen, doesn't set it in the gap)
+    await drop(page, [[a.r - 70, a.t + 300], [a.r - 80, a.t + 420]]);
+    await hook(page, 'click', a.l + 60, a.t + 360);
+    await settled(page);
+    const n = await named(page), where = l => !l ? 'gone' : l.x > b.l - 2 ? 'page 2 or beyond' : l.x > a.r ? 'in the gap' : l.x < a.l ? 'left of page 1' : 'on page 1';
+    ok('a leaf on page 1 near the gap never ends up on or beyond page 2', ['k0', 'k1'].every(k => ['in the gap', 'left of page 1'].includes(where(n[k]))), `gap ${gap.toFixed(0)} px: ${where(n.k0)}, ${where(n.k1)}`);
+  }
+  s.done(); await s.context.close();
+}
+
+// ---- the snail comes only after rain: a short shower brings it out onto the wet mat ----
+async function shower(){
+  const ok = reporter('shower'), s = await open(ok, { ctx: { viewport: { width: 1920, height: 1000 } } }), { page } = s;
+  await ready(page);
+  await park(page);
+  await hook(page, 'rest'); await hook(page, 'rain', 1500);
+  const came = await page.waitForFunction(() => !!document.querySelector('.g-thing.g-snail'), null, { timeout: 30000 }).then(() => true, () => false);
+  ok('a snail comes out after a shower', came);
   s.done(); await s.context.close();
 }
 
@@ -357,7 +510,7 @@ async function axe(){
   }
 }
 
-const all = { flow, sweep, key: keyClear, editing, rain, creatures, petals, pause, drinks, gates, axe };
+const all = { flow, sweep, key: keyClear, editing, rain, shower, creatures, bump, zoom, puff, pages, petals, pause, drinks, gates, axe };
 const only = process.env.ONLY?.split(',');           // ONLY=editing,gates runs just those
 await Promise.all(Object.entries(all).filter(([n]) => !only || only.includes(n)).map(([, f]) => f()));
 await browser.close(); server.close();
