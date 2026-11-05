@@ -79,6 +79,7 @@ function close(refocus = true){
   if (refocus) b.focus();
   open = null;
 }
+const SURFACE = ['--pop', '--surface', '--raised', '--ink', '--ink-soft', '--line', '--line-strong', '--input', '--hover', '--hover-strong', '--mark', '--mark-soft', '--on-mark', '--paper', '--paper-ink'];
 function place(){
   if (!open) return;
   const r = open.btn.getBoundingClientRect(), el = open.el;
@@ -95,6 +96,9 @@ function draw(){
   tmp.innerHTML = f.dataset.day ? dayMenuHtml(open.year, open.month, input.value, C().lang()) : menuHtml(open.year, input.value, !!f.dataset.present, C().lang());
   open.el = tmp.firstElementChild;
   (open.btn.closest('dialog') ?? document.body).append(open.el);
+  // the menu lives at the page's end but takes the colours of the surface its field sits on (Career's paper, the sidebar, a dialog)
+  const cs = getComputedStyle(open.btn);
+  for (const k of SURFACE) open.el.style.setProperty(k, cs.getPropertyValue(k));
   place();
 }
 function set(value){

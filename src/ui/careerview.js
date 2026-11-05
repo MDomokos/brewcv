@@ -775,10 +775,14 @@ function dim(){
 function marks2(){
   const sc = pane(); if (!sc || C.ui.view !== 'record') return;
   const bar = sc.querySelector('.ce-bar');
-  sc.classList.toggle('ce-top', sc.scrollTop > 0);
   sc.classList.toggle('ce-more', sc.scrollTop + sc.clientHeight < sc.scrollHeight - 2);
-  if (bar){ const r = bar.getBoundingClientRect(); sc.style.setProperty('--ce-bx', `${r.left}px`); sc.style.setProperty('--ce-bw', `${r.width}px`); sc.style.setProperty('--ce-bt', `${r.top}px`); sc.style.setProperty('--ce-br', getComputedStyle(bar).borderTopLeftRadius); sc.style.setProperty('--ce-bh', `${r.height}px`); sc.style.setProperty('--ce-bb', `${r.bottom}px`); }
+  if (bar){
+    const r = bar.getBoundingClientRect(), ramp = r.height + 16;
+    sc.style.setProperty('--ce-ramp', `${ramp}px`);
+    if (!SCROLL_TIMELINE) sc.style.setProperty('--ce-f', String(Math.min(1, sc.scrollTop / ramp)));      // a browser with no scroll timeline: the same strength, set from the scroll sc.style.setProperty('--ce-bx', `${r.left}px`); sc.style.setProperty('--ce-bw', `${r.width}px`); sc.style.setProperty('--ce-bt', `${r.top}px`); sc.style.setProperty('--ce-br', getComputedStyle(bar).borderTopLeftRadius); sc.style.setProperty('--ce-bh', `${r.height}px`); sc.style.setProperty('--ce-bb', `${r.bottom}px`);
+  }
 }
+const SCROLL_TIMELINE = globalThis.CSS?.supports?.('animation-timeline: scroll()') ?? false;
 const dirtyFields = () => [...(pane()?.querySelectorAll('.ce-doc .ce-ed') ?? [])].filter(f => f.value !== f.defaultValue);
 const dirty = () => dirtyFields().length > 0 || [...S.drafts.values()].some(v => String(v).trim());
 // Esc (and Cmd/Ctrl+.): a menu first, then an edit in progress is cancelled (only that), then what is open closes.

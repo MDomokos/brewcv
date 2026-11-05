@@ -12,7 +12,8 @@
 //   - a click on the bare ground (around the column, between the cards) closes what is open, an unsaved edit excepted;
 //   - a card or a section opening or closing in place leaves the mat exactly still; the wheel still scrolls the content and the mat;
 //   - "Something else" is Career's own kind editor: a preset, Create, its first entry in Career; a kind's settings, colour and delete there too;
-//   - scrolled, the top fade runs from the toolbar's top edge, through its corners, to just under its foot;
+//   - the top fade's strength follows the scroll (none at the top, full past the toolbar's height and 16px), and runs from the toolbar's top edge, through its corners, to just under its foot;
+//   - the month picker's months and field read at 4.5:1 on their surface, in Career and in Mark as sent, Tea dark and Coffee light;
 //   - under 860px the timeline is one column.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing.
 
@@ -37,9 +38,9 @@ const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'} 
 const exe = process.env.CHROME_PATH ?? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p => fs.existsSync(p));
 const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executablePath: exe } : {});
 
-async function open(w, h, { motion = false } = {}){
+async function open(w, h, { motion = false, look = ['tea', 'light'] } = {}){
   const ctx = await browser.newContext({ viewport: { width: w, height: h } });
-  await ctx.addInitScript(m => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-esc-fold', 'off'); localStorage.setItem('rb-drink', 'tea'); localStorage.setItem('rb-theme', 'light'); if (!m) localStorage.setItem('rb-reduce-motion', '1'); } catch { /* none */ } }, motion);
+  await ctx.addInitScript(([m, d, t]) => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-esc-fold', 'off'); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); if (!m) localStorage.setItem('rb-reduce-motion', '1'); } catch { /* none */ } }, [motion, ...look]);
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto(`http://localhost:${PORT}/?memory#record`, { waitUntil: 'networkidle' });
@@ -183,6 +184,10 @@ async function pixels(ctx, png){
   ok('…and the wheel still scrolls Career afterwards, the mat with it', (await sc()) < w0 && (await matAt()) !== mw);
   await page.keyboard.press('Escape'); await settle(page);
 
+  // the top fade's strength follows the scroll: none at the top, half at half the ramp (the toolbar's height and 16px), all past it, and back
+  const fadeAt = y => page.evaluate(async y => { const s = document.getElementById('scr'); s.scrollTop = y; await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); return { f: +getComputedStyle(s).getPropertyValue('--ce-f'), ramp: parseFloat(s.style.getPropertyValue('--ce-ramp')) }; }, y);
+  const f0 = await fadeAt(0), fm = await fadeAt(Math.round(f0.ramp / 2)), f1 = await fadeAt(Math.round(f0.ramp * 2)), fb = await fadeAt(0);
+  ok('the top fade grows with the scroll: none at the top, about half at half the toolbar\u2019s height and 16px, full past it, none again back at the top', f0.f === 0 && Math.abs(fm.f - 0.5) < 0.05 && f1.f === 1 && fb.f === 0 && f0.ramp > 40, JSON.stringify({ f0, fm, f1, fb }));
   // scrolled, nothing shows beside the toolbar's rounded corners: the fade takes the whole width at its height, its corners included
   await page.evaluate(() => { const s = document.getElementById('scr'), c = document.querySelector('#scr .ce-card[data-ce-card=hydra]'), bar = document.querySelector('#scr .ce-bar'); s.scrollTop += c.getBoundingClientRect().top - bar.getBoundingClientRect().top + 10; }); await settle(page);      // the card's top just above the toolbar
   const corner = await page.evaluate(() => { const r = document.querySelector('#scr .ce-bar').getBoundingClientRect(); return { x: Math.floor(r.right) - 3, y: Math.ceil(r.top) + 1, top: Math.floor(r.top) - 3, below: Math.ceil(r.bottom) + 2, r: parseFloat(getComputedStyle(document.querySelector('#scr .ce-bar')).borderTopRightRadius) }; });
@@ -222,6 +227,29 @@ async function pixels(ctx, png){
   });
   ok('in a narrow card the hover add and "On this resume" both show, apart', narrow.label && narrow.add && narrow.apart, JSON.stringify(narrow));
   ok('no errors', errors.length === 0, errors[0] ?? '');
+  await ctx.close();
+}
+
+// the month picker takes the surface its field sits on: its months readable (4.5:1 at least) in Career and in Mark as sent, Tea dark, Coffee light and Tea light (where Career's paper and the sidebar differ)
+const CONTRAST = () => {
+  const parse = c => { const m = c.match(/[\d.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m[3] ?? 1 }; };
+  const bgOf = el => { const layers = []; for (let n = el; n; n = n.parentElement){ const c = parse(getComputedStyle(n).backgroundColor); if (c.a > 0){ layers.push(c); if (c.a >= 1) break; } } let o = { r: 255, g: 255, b: 255 }; for (const c of layers.reverse()) o = { r: c.r * c.a + o.r * (1 - c.a), g: c.g * c.a + o.g * (1 - c.a), b: c.b * c.a + o.b * (1 - c.a) }; return o; };
+  const lum = c => { const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }; return .2126 * f(c.r) + .7152 * f(c.g) + .0722 * f(c.b); };
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+  const m = document.getElementById('mp-menu'), f = document.querySelector('.mpbtn[aria-expanded=true]');
+  if (!m || !f) return null;
+  return { months: Math.min(...[...m.querySelectorAll('.mpgrid button:not(:disabled), .mpyear output')].map(b => ratio(parse(getComputedStyle(b).color), bgOf(b)))), field: ratio(parse(getComputedStyle(f).color), bgOf(f)) };
+};
+for (const look of [['tea', 'dark'], ['coffee', 'light'], ['tea', 'light']]){
+  const { ctx, page } = await open(1440, 860, { look });
+  await page.click('#ce-add'); await page.click('#ce-pop [data-act=cv-add][data-what=work]'); await settle(page);
+  await page.click('#ce-f-start-b'); await settle(page);
+  const career = await page.evaluate(CONTRAST);
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
+  await page.evaluate(() => window.__wb.resumes.markSent()); await settle(page);
+  await page.click('[id$=-date-b]'); await settle(page);
+  const sent = await page.evaluate(CONTRAST);
+  ok(`${look.join(' ')}: the month picker reads on its own surface: its months and its field at 4.5:1 at least, in Career and in Mark as sent`, [career, sent].every(c => c && c.months >= 4.5 && c.field >= 4.5), JSON.stringify({ career, sent }));
   await ctx.close();
 }
 

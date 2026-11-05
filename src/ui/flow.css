@@ -185,11 +185,11 @@ body[data-lens=whole] #body .insp-rec .clrow.is-off .clt { opacity: 1; color: va
    paper, a card from the left gutter to the sidebar's: its toolbar is the pane's header row, and only the list inside scrolls. The open resume's
    page is not drawn behind it. ---- */
 .scr { position: fixed; z-index: 6; overflow: auto; padding: 0 4px 16px; color: var(--paper-ink);
-  --surface: var(--paper); --raised: var(--paper); --ink: var(--paper-ink); --ink-soft: var(--paper-soft); --line: var(--paper-line); --line-strong: color-mix(in srgb, var(--paper-line) 70%, var(--paper-ink)); --field: var(--sheet); }
+  --surface: var(--paper); --raised: var(--paper); --ink: var(--paper-ink); --ink-soft: var(--paper-soft); --line: var(--paper-line); --line-strong: color-mix(in srgb, var(--paper-line) 70%, var(--paper-ink)); --field: var(--sheet); --input: var(--sheet); --pop: var(--paper); }      /* a field, and a menu opened from one, on the paper are the paper's, not the sidebar's */
 /* dark: the things on the ground are the drink's dark surfaces, not paper (the roles back to the theme's, the paper made of them); a picture of a
    page stays the page's white, dimmed, here, in the hover preview and in the inspector (the editor's page is not) */
 html[data-theme="dark"] .scr { --surface: inherit; --raised: inherit; --ink: inherit; --ink-soft: inherit; --line: inherit; --line-strong: inherit; --bad: inherit;
-  --paper: var(--surface); --paper-ink: var(--ink); --paper-soft: var(--ink-soft); --paper-line: var(--line); --paper-hover: var(--hover); --paper-edge: var(--line-strong); --press-paper-sh: var(--press-sh); --field: var(--input); }
+  --paper: var(--surface); --paper-ink: var(--ink); --paper-soft: var(--ink-soft); --paper-line: var(--line); --paper-hover: var(--hover); --paper-edge: var(--line-strong); --press-paper-sh: var(--press-sh); --input: inherit; --pop: inherit; --field: var(--input); }
 html[data-theme="dark"] :is(.scr .rthumb, .scr .dthumb, .scr .thumbwrap::before, .hoverprev, .insp-res .ihpage, .insp-doc .dpage) { filter: brightness(.85); }
 html[data-theme="dark"] .scr .thumbwrap::before { background: var(--sheet); }
 html[data-theme="dark"] .scr .rcard.rdoc .dthumb { color: var(--sample-grey); --paper-soft: var(--sample-grey); }
@@ -623,17 +623,23 @@ mark.fnd { background: var(--mark-soft); color: inherit; border-radius: 2px; pad
 .scr .ce-lang { display: inline-flex; gap: 2px; padding: 2px; }
 .scr .ce-lang button { display: inline-flex; align-items: center; gap: 4px; height: calc(var(--h-ctl) - 4px); padding: 0 8px; font: 600 12px/1 var(--font-ui); }
 .scr .ce-lang small { font-size: 10px; font-weight: 700; opacity: .75; }
-/* the fades: the top one once scrolled, from the toolbar's top edge to a little under its foot, and the foot's while there is more; a mask, so the toolbar's own shape stays whole. What
-   lies under the masked bands is the ground's plain tone, so the mat (always the one that scrolls) softens into it at the window's edges. */
-#scr:is(.ce-top, .ce-more) { --ce-a: 0px; --ce-b: 0px; --ce-z: 0px; --r: var(--ce-br, 0px); --d: calc(2 * var(--r));
+/* the fades: the top one from the toolbar's top edge to a little under its foot, as strong as Career is scrolled (none at the top, all of it
+   once scrolled by the toolbar's height and 16px: --ce-f, driven by the scroll itself), and the foot's while there is more; a mask, so the
+   toolbar's own shape stays whole. What lies under the masked bands is the ground's plain tone, so the mat (always the one that scrolls)
+   softens into it at the window's edges. */
+@property --ce-f { syntax: "<number>"; inherits: true; initial-value: 0; }
+@keyframes ce-fade { from { --ce-f: 0; } to { --ce-f: 1; } }
+#scr:has(.ce-doc) { --ce-z: 0px; --ce-x: color-mix(in srgb, var(--ink) calc((1 - var(--ce-f)) * 100%), transparent); --ce-a: var(--ce-bt, 0px); --ce-b: calc(var(--ce-bb, 0px) + 16px); --r: var(--ce-br, 0px); --d: calc(2 * var(--r));
   --ce-dot: radial-gradient(circle closest-side, var(--ink) 98%, transparent 100%);
-  -webkit-mask-image: linear-gradient(var(--ink), var(--ink)), linear-gradient(var(--ink), var(--ink)), var(--ce-dot), var(--ce-dot), var(--ce-dot), var(--ce-dot), linear-gradient(to bottom, transparent var(--ce-a), var(--ink) var(--ce-b), var(--ink) calc(100% - var(--ce-z)), transparent 100%);
-  mask-image: linear-gradient(var(--ink), var(--ink)), linear-gradient(var(--ink), var(--ink)), var(--ce-dot), var(--ce-dot), var(--ce-dot), var(--ce-dot), linear-gradient(to bottom, transparent var(--ce-a), var(--ink) var(--ce-b), var(--ink) calc(100% - var(--ce-z)), transparent 100%);
+  -webkit-mask-image: linear-gradient(var(--ink), var(--ink)), linear-gradient(var(--ink), var(--ink)), var(--ce-dot), var(--ce-dot), var(--ce-dot), var(--ce-dot), linear-gradient(to bottom, var(--ce-x) 0, var(--ce-x) var(--ce-a), var(--ink) var(--ce-b), var(--ink) calc(100% - var(--ce-z)), transparent 100%);
+  mask-image: linear-gradient(var(--ink), var(--ink)), linear-gradient(var(--ink), var(--ink)), var(--ce-dot), var(--ce-dot), var(--ce-dot), var(--ce-dot), linear-gradient(to bottom, var(--ce-x) 0, var(--ce-x) var(--ce-a), var(--ink) var(--ce-b), var(--ink) calc(100% - var(--ce-z)), transparent 100%);
   /* the toolbar's own shape stays whole: two crossed bands and its four rounded corners; everything beside it, its corners included, fades */
   --ce-ms: var(--ce-bw, 0px) calc(var(--ce-bh, 0px) - var(--d)), calc(var(--ce-bw, 0px) - var(--d)) var(--ce-bh, 0px), var(--d) var(--d), var(--d) var(--d), var(--d) var(--d), var(--d) var(--d), 100% 100%;
   --ce-mp: var(--ce-bx, 0px) calc(var(--ce-bt, 0px) + var(--r)), calc(var(--ce-bx, 0px) + var(--r)) var(--ce-bt, 0px), var(--ce-bx, 0px) var(--ce-bt, 0px), calc(var(--ce-bx, 0px) + var(--ce-bw, 0px) - var(--d)) var(--ce-bt, 0px), var(--ce-bx, 0px) calc(var(--ce-bt, 0px) + var(--ce-bh, 0px) - var(--d)), calc(var(--ce-bx, 0px) + var(--ce-bw, 0px) - var(--d)) calc(var(--ce-bt, 0px) + var(--ce-bh, 0px) - var(--d)), 0 0;
   -webkit-mask-size: var(--ce-ms); mask-size: var(--ce-ms); -webkit-mask-position: var(--ce-mp); mask-position: var(--ce-mp); -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
-#scr.ce-top { --ce-a: var(--ce-bt, 0px); --ce-b: calc(var(--ce-bb, 0px) + 16px); }      /* gone at the toolbar's top, back in full a little under its foot */
+@supports (animation-timeline: scroll()){
+  #scr:has(.ce-doc), html[data-motion="reduce"] #scr:has(.ce-doc) { animation: ce-fade linear both !important; animation-timeline: scroll(self) !important; animation-range: 0px var(--ce-ramp, 64px) !important; }      /* it follows the scroll, it is not a motion */
+}
 #scr.ce-more { --ce-z: 36px; }
 html[data-drink="tea"] body.has-scr:has(#scr .ce-doc):not(:has(.matroll)) { background: linear-gradient(var(--mat-wash), var(--mat-wash)), var(--mat-b); }
 html[data-drink="coffee"] body.has-scr:has(#scr .ce-doc):not(:has(.matroll)) { background: var(--canvas); }
