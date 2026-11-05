@@ -69,7 +69,7 @@ export function usedVersions(model, recipe){
 
 // Key order and bookkeeping don't change what a resume prints.
 export const canon = x => (Array.isArray(x) ? x.map(canon) : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map(k => [k, canon(x[k])])) : x);
-const NOT_PRINTED = ['id', 'savedAt', 'date', 'application', 'title', 'name', 'company', 'role', 'forKind', 'jobType', 'tags', 'snapshots', 'held', 'byLang', 'parent', 'parked', 'earlier', 'locked', 'inStep', 'labelFrom', 'round', 'archived'];
+const NOT_PRINTED = ['id', 'savedAt', 'date', 'application', 'title', 'name', 'company', 'role', 'forKind', 'jobType', 'tags', 'snapshots', 'held', 'byLang', 'parent', 'parked', 'earlier', 'locked', 'inStep', 'labelFrom', 'round', 'archived', 'inLine'];
 export const printedKey = (recipe, body) => {
   const r = clone(recipe);
   for (const k of NOT_PRINTED) delete r[k];
@@ -227,7 +227,7 @@ export function startRecipe(state, { start = 'all', fromId = null, company = '',
     r = copyOf(src);
     r.jobType = ''; r.tags = [];      // the copy starts with no job type or tags, as a new resume does; the original keeps its own
     holdFrozen(state.record, r, state.frozen?.[src.id] ?? null);
-    switchLang(r, L, state.record);
+    switchLang(r, L, state.record, { whole: true });
     if (format) r.format = format;
   } else {
     r = newResume(state.record, { format: f, lang: L, pageLimit: state.cur?.pageLimit ?? 1 });
@@ -263,7 +263,7 @@ export function duplicate(state, id, { lang = null, name = null, company, role }
   holdFrozen(state.record, r, state.frozen?.[id] ?? null);
   const base = resumeLabel(src);
   const to = lang && lang !== (r.lang ?? 'en') ? lang : null;
-  if (to){ switchLang(r, to, state.record); r.inStep = true; delete r.labelFrom; }      // what the original's labels were written against is no word of this language's
+  if (to){ switchLang(r, to, state.record, { whole: true }); r.inStep = true; delete r.labelFrom; }      // what the original's labels were written against is no word of this language's
   state.cur = r;
   state.openId = null;
   const out = saveNew(state, { name: name ?? (to ? t('ux1.langCopy', { name: base, lang: to.toUpperCase() }) : t('ux1.copyOf', { name: base })), company, role });

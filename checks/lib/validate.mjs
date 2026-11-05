@@ -628,6 +628,12 @@ export function validate(input, recipe = null){
       }
     }
 
+    // inLine: the number the other languages print, where this language has a version of its own
+    if (recipe.inLine !== undefined){
+      if (!recipe.inLine || typeof recipe.inLine !== 'object' || Array.isArray(recipe.inLine) || Object.values(recipe.inLine).some(n => !isStr(n))) err('recipe.inLine', 'expected { factId: version number }');
+      else for (const fid of Object.keys(recipe.inLine)) if (!byFact.has(fid)) warn('recipe.inLine', `${fid} is not a claim any more`);
+    }
+
     // held: one-off texts that hold a saved resume's frozen wording
     if (recipe.held !== undefined){
       if (!Array.isArray(recipe.held) || recipe.held.some(id => !isStr(id))) err('recipe.held', 'expected an array of fact ids');

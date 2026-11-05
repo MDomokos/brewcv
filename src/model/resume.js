@@ -629,6 +629,7 @@ export function keepHere(recipe, factId){
 export function pickVersion(model, recipe, factId, vid){
   guard(model, recipe, factId);
   recipe.picks = { ...(recipe.picks ?? {}), [factId]: vid };
+  if (recipe.inLine?.[factId] != null){ const { [factId]: _, ...rest } = recipe.inLine; if (Object.keys(rest).length) recipe.inLine = rest; else delete recipe.inLine; }      // a pick is every in-line language's (lang.js)
   parkOverride(model, recipe, factId);
 }
 

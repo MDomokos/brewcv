@@ -82,9 +82,11 @@ export function missBar({ lang, list, act = 'go-missing', group = false, offer =
 const FLAG = { 'needs-review': () => [t('wb.review'), t('wb.reviewTip')], imported: v => [t('flag.imported'), v.source ?? ''] };
 function vtags(v, x){
   const flags = R.flagsOf(v).map(f => { const [label, tip] = FLAG[f](v); return `<span class="tag flag" title="${esc(tip)}">${esc(label)}</span>`; }).join('');
+  // the resume's other languages that print this version's number on the line
+  const langs = (x.line?.others ?? []).filter(o => String(o.n) === String(v.n)).map(o => `<span class="tag ltag" title="${esc(t('edit.langUses', { lang: LANG_NAME[o.lang] ?? o.lang }))}">${esc(o.lang.toUpperCase())}</span>`).join('');
   const names = x.uses?.get(v.id) ?? [];
   const use = names.length ? `<details class="vuse" data-v="${esc(v.id)}"${x.useOpen?.has(v.id) ? ' open' : ''}><summary data-act="vuse">${h('use.count', { n: names.length })}</summary><ul class="vuses">${names.map(n => n.id === x.openId ? `<li class="this">${esc(n.name)} ${h('use.this')}</li>` : `<li><button type="button" class="vuseb" data-act="vuse-open" data-rid="${esc(n.id)}" title="${esc(n.name)}">${esc(n.name)}</button></li>`).join('')}</ul></details>` : '';
-  return flags || use ? `<div class="vtags">${flags}${use}</div>` : '';
+  return flags || use || langs ? `<div class="vtags">${langs}${flags}${use}</div>` : '';
 }
 
 // The editor, in place of the row it edits. x.dirty: the draft is worth saving;
@@ -232,12 +234,14 @@ const v_isCur = (v, using, over) => over === undefined && v.id === using?.id;
 function vrow(v, using, over, x){
   const isCur = v_isCur(v, using, over);
   const minor = String(v.n).includes('.');
+  const code = String(x.lang).toUpperCase(), many = (x.line?.langs.length ?? 0) > 1 && String(v.n) !== String(x.line.n);      // the in-line number is no choice of one language's
+  const back = isCur && x.line?.own ? `<button class="ghost sm" data-act="back-in-line" title="${esc(t('edit.backInLineTitle', { n: x.line.n }))}">${h('edit.backInLine')}</button>` : '';
   if (isCur) return `<div class="vrow cur ${minor ? 'minor' : ''}" data-v="${esc(v.id)}"><span class="rad"></span><span class="n">v${esc(v.n)}</span><span class="tx">${esc(v.text)}</span>
-    ${x.full ? '' : `<span class="vbtn">${pencil}</span>`}
+    ${x.full && !back ? '' : `<span class="vbtn">${x.full ? '' : pencil}${back}</span>`}
     ${vtags(v, x)}</div>`;
   return `<div class="vrow ${minor ? 'minor' : ''}" data-act="use-version" data-v="${esc(v.id)}" tabindex="0" title="${esc(v.text)}">
     <span class="rad"></span><span class="n">v${esc(v.n)}</span><span class="tx">${x.full ? marked(v.text, over ?? using?.text ?? '') : gist(v.text, over ?? using?.text ?? '')}</span>
-    <span class="acts"><button class="ghost sm" data-act="compare" data-v="${esc(v.id)}" title="${esc(t('edit.compareTitle'))}" aria-label="${esc(t('edit.compareTitle'))}">${icon('compare')}</button>${delBtn(`data-act="delete-version" data-v="${esc(v.id)}"`, t('edit.deleteV', { v: v.n }), { text: false })}</span>
+    <span class="acts">${many ? `<button class="ghost sm" data-act="use-only" data-v="${esc(v.id)}" title="${esc(t('edit.onlyInTitle', { v: v.n, lang: LANG_NAME[x.lang] ?? code, n: x.line.n }))}">${h('edit.onlyIn', { code })}</button>` : ''}<button class="ghost sm" data-act="compare" data-v="${esc(v.id)}" title="${esc(t('edit.compareTitle'))}" aria-label="${esc(t('edit.compareTitle'))}">${icon('compare')}</button>${delBtn(`data-act="delete-version" data-v="${esc(v.id)}"`, t('edit.deleteV', { v: v.n }), { text: false })}</span>
     ${vtags(v, x)}</div>`;
 }
 
@@ -303,6 +307,18 @@ export function photoHtml({ rec, r, a4 = true, url = '' }){
 export const orderMarkHtml = (custom, kind, id, name) => (custom
   ? `<span class="pill custom">${h('ux5b.custom')}</span><button class="ghost sm" data-act="order-reset" data-kind="${kind}" data-id="${esc(id)}" aria-label="${esc(t('ux5b.resetTitle', { name }))}">${h('ux5b.reset')}</button>` : '');
 
+// A row of the version menu: the version, the codes of the resume's other languages that print it (`vers.line`, lang.js lineState), and in a
+// resume in several languages "Only in XX" beside a version the others do not print, "Back in line" beside the one in use when it is this language's own.
+function cvRow(o, vers){
+  const line = vers.line, code = String(vers.lang ?? '').toUpperCase();
+  const langs = (line?.others ?? []).filter(x => !o.mine && String(x.n) === String(o.n)).map(x => `<i class="cvlt" title="${esc(t('edit.langUses', { lang: LANG_NAME[x.lang] }))}">${esc(x.lang.toUpperCase())}</i>`).join('');
+  const opt = `<button type="button" class="cvo${o.cur ? ' is-cur' : ''}" role="option" aria-selected="${!!o.cur}" data-act="${o.mine ? 'use-edit' : 'use-version'}" data-v="${esc(o.id ?? '')}"><b>v${esc(o.n)}</b><span>${o.gist}</span>${langs ? `<span class="cvlts">${langs}</span>` : ''}</button>`;
+  const side = (line?.langs.length ?? 0) < 2 || o.mine ? ''
+    : o.cur ? (line.own ? `<button type="button" class="cvside is-on" role="option" aria-selected="false" data-act="back-in-line" title="${esc(t('edit.backInLineTitle', { n: line.n }))}">${h('edit.backInLine')}</button>` : '')
+    : String(o.n) !== String(line.n) ? `<button type="button" class="cvside" role="option" aria-selected="false" data-act="use-only" data-v="${esc(o.id)}" title="${esc(t('edit.onlyInTitle', { v: o.n, lang: LANG_NAME[vers.lang], n: line.n }))}">${h('edit.onlyIn', { code })}</button>` : '';
+  return side ? `<div class="cvrow" role="presentation">${opt}${side}</div>` : opt;
+}
+
 // The editor card's top row, the same at every depth: the tick and the padlock of what is selected (`show` and `lock`), the version menu (a line: `vers` { fact, n, items: [{ id, n, cur, mine, gist }], miss, locked }), ↑ ↓ only among siblings
 // (`move` { first, last }), ⋯ (`more`: [{ act, label, attrs, del }]), and at its right end the add for this level (`add` { label }). A menu is its
 // button's next sibling, hidden until the button opens it (edit.js).
@@ -317,7 +333,7 @@ export function topHtml({ name = '', lock = null, show = null, fix = null, vers 
   const verHtml = !vers ? '' : vers.miss
     ? tb('cver miss', 'ob-miss', t('ml2.tagMiss', { v: vers.miss.n, lang: langName(vers.miss.from) }), `v${esc(vers.miss.n)} · ${esc(vers.miss.from.toUpperCase())}`, `data-fact="${esc(vers.fact)}"`)
     : `<span class="cwrap">${tb(vers.mine ? 'cver mine' : 'cver', 'top-menu', vers.mine ? t('ux6g.optMine', { v: vers.n }) : t('card.versions', { v: vers.n }), `<span>v${esc(vers.n)}</span>${vers.items.length ? icon('caret', { role: 'inline' }) : ''}`, `data-m="vers" aria-haspopup="listbox" aria-expanded="false"${vers.mine ? ` title="${esc(t('ux6g.onlyHere'))}"` : ''}${vers.locked || !vers.items.length ? ' disabled' : ''}`)}
-      <div class="cpop cvlist" data-fact="${esc(vers.fact)}" role="listbox" aria-label="${esc(t('ux6g.tagList'))}" hidden>${vers.items.map(o => `<button type="button" class="cvo${o.cur ? ' is-cur' : ''}" role="option" aria-selected="${!!o.cur}" data-act="${o.mine ? 'use-edit' : 'use-version'}" data-v="${esc(o.id ?? '')}"><b>v${esc(o.n)}</b><span>${o.gist}</span></button>`).join('')}</div></span>`;
+      <div class="cpop cvlist" data-fact="${esc(vers.fact)}" role="listbox" aria-label="${esc(t('ux6g.tagList'))}" hidden>${vers.items.map(o => cvRow(o, vers)).join('')}</div></span>`;
   const mv = move && `${tb('cmv', 'top-step', t('card.up'), icon('up', { role: 'inline' }), `data-d="-1" aria-disabled="${!!move.first}"`, keyText('Alt', '↑'))}${tb('cmv', 'top-step', t('card.down'), icon('caret', { role: 'inline' }), `data-d="1" aria-disabled="${!!move.last}"`, keyText('Alt', '↓'))}`;      // (their keys in the hint)
   const items = [...more, fix && { act: fix.act, label: fix.name, del: fix.del, attrs: fix.disabled ? 'aria-disabled="true"' : '' }].filter(Boolean);
   const moreHtml = items.length ? `<span class="cwrap">${tb('cmore', 'top-menu', t('card.more'), icon('more', { role: 'inline' }), 'data-m="more" aria-haspopup="menu" aria-expanded="false"')}

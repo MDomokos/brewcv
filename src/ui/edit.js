@@ -7,7 +7,7 @@ import * as MK from '../model/marks.js';
 import * as T from '../model/resume.js';
 import * as LK from '../model/lock.js';
 import { key as measureKeyOf } from '../fit.js';
-import { missingList, writeInPlan, matchPlan, isSame, sameKey, setSame, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
+import { missingList, writeInPlan, matchPlan, isSame, sameKey, setSame, langName, writeIn, DEFAULT_LANG, lineState, pickOnly, backInLine } from '../model/lang.js';
 import { groupOf, inGroup, groupOpts, parentOf, setInStep, matchVersion, keepLabelAs, prints, resumeLabel, nameFrom, wordOf } from '../model/resumes.js';
 import * as K from '../model/career.js';
 import { recordSelOfFact, factOfRecordSel, groupOf as recordGroupOf } from '../model/checklist.js';
@@ -401,13 +401,14 @@ function versOf(sel){
   const miss = grouped() ? missingNow().find(x => x.id === id && isLineMiss(x)) : null;
   if (miss?.want && over === undefined) return { fact: id, miss: { n: miss.want, from: miss.from } };
   const items = R.versionsIn(m, id, L).map(v => { const now = over === undefined && v.id === using?.id; return { id: v.id, n: v.n, cur: now, gist: now ? esc(clip(v.text, 90)) : gist(v.text, ref) }; });
+  const line = lineState(m, cur(), id);      // which version each other language of the resume prints
   const mine = over ?? cur().parked?.[id]?.text;
   if (mine !== undefined && String(mine).trim()){
     const n = R.suggestNumber(m, id, mine, L).n, at = items.findIndex(o => R.compareN(o.n, n) > 0);
     items.splice(at < 0 ? items.length : at, 0, { id: null, n, mine: true, cur: over !== undefined, gist: esc(clip(mine, 90)) });
   }
   const ed = E.edit?.fact === id && !E.edit.panel ? E.edit : null;      // a line being written says the version it was written from
-  return { fact: id, n: (ed && m.variants.find(v => v.id === ed.vid)?.n) ?? items.find(o => o.cur)?.n ?? using?.n ?? '·', items: items.length > 1 ? items : [], locked: isLockedId(id), mine: over !== undefined };      // mine: the line prints an edit on this resume only
+  return { fact: id, n: (ed && m.variants.find(v => v.id === ed.vid)?.n) ?? items.find(o => o.cur)?.n ?? using?.n ?? '·', items: items.length > 1 ? items : [], locked: isLockedId(id), mine: over !== undefined, lang: L, line };      // mine: the line prints an edit on this resume only
 }
 function moreOf(sel){
   const out = [];
@@ -600,7 +601,7 @@ function versionsX(id){
     compare: E.compare, openMinor: E.openMinor, lines: linesOf, uses: usesOf(id), openId: C.store.state.openId, useOpen: E.useOpen,
     dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !!(T.jobOfFact(rec(), id, cur()) || id === cur().summary),
     ref: C.chooseVariant(work(), id, { ...cur(), lang: DEFAULT_LANG }).v ?? en[0],
-    wi: writeInX(id),
+    wi: writeInX(id), line: lineState(work(), cur(), id),
   };
 }
 
@@ -900,6 +901,9 @@ async function act(a, tg){
     }
     case 'group-remove': case 'sk-delgroup': C.bank().deleteGroup(s.id.replace(/^~g:/, '')); return true;
     case 'sk-pick': { const g = tg.dataset.g; C.bank().pickGroup(sel.kind === 'bullet' && sel.section === 'skills' && sel.id.replace(/^~g:/, '') === g ? null : g); return true; }      // a click on the picked one lets it go
+    // a version for this language only, and back to the number the resume's other languages print
+    case 'use-only': { const v = ix().variants.get(tg.dataset.v); if (v) commit(d => pickOnly(d.record, d.cur, s.id, v.id), t('undo.onlyIn', { v: v.n, lang: langName(lang()) })); return true; }
+    case 'back-in-line': commit(d => backInLine(d.record, d.cur, s.id), t('undo.backInLine')); return true;
     case 'only-remove': commit(d => T.setOverride(d.record, d.cur, s.id, null), t('edit.backToSaved'), t('toast.backToSaved')); return true;
     case 'unfold': E.openMinor.add(`${s.id}:${lang()}:${tg.dataset.m}`); C.renderBody(); return true;
     case 'fold': { const id = tg.dataset.fact ?? s.id; E.fold.set(id, !folded(id)); C.renderBody(); return true; }

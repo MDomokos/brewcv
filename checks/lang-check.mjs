@@ -77,27 +77,62 @@ section('a text with no version in the language');
   ok('an English resume has nothing missing', L.missingList(model, en).length === 0);
 }
 
-section('switching language');
+section('switching language: one resume, the same lines in every language');
 {
   const r = clone(en);
-  const picks = clone(r.picks);
-  T.setOverride(model, r, Object.keys(picks)[0] ?? 'summary', 'Only here.');
-  const ov = clone(r.overrides);
+  T.pickVersion(model, r, 'summary', 'summary-v2');
+  const other = Object.keys(r.picks).find(f => f !== 'summary') ?? 'tagline';
+  T.setOverride(model, r, other, 'Only here.');
+  const ov = clone(r.overrides), lines = L.printedFactIds(model, r).map(p => p.fact);
   L.switchLang(r, 'hu', model);
   ok('English → Hungarian: lang and the Hungarian A4', r.lang === 'hu' && (r.format === 'a4-hu' || r.format === 'us-letter'));
-  ok('English picks and one-off texts are put aside', eq(r.byLang.en.picks, picks) && eq(r.byLang.en.overrides, ov) && eq(r.picks, {}) && eq(r.overrides, {}));
+  ok('the same lines, in the same order', eq(L.printedFactIds(model, r).map(p => p.fact), lines));
+  ok('a line prints the version with the same number', r.picks.summary === 'summary-v2-hu' && !r.inLine?.summary);
+  ok('one-off texts are put aside, picks are not', eq(r.byLang.en.overrides, ov) && !r.byLang.en.picks && eq(r.overrides, {}));
   ok('it validates and renders', validate(S.save(model), r).errors.length === 0 && !!html(model, r, { fallback: true }), validate(S.save(model), r).errors[0]);
-  const huv = model.variants.find(v => v.lang === 'hu' && model.facts.find(f => f.id === 'summary').variants.includes(v.id));
-  r.picks.summary = huv.id;
+  T.pickVersion(model, r, 'summary', 'summary-v1-hu');
   L.switchLang(r, 'en', model);
-  ok('Hungarian → English brings them back', eq(r.picks, picks) && eq(r.overrides, ov) && !('lang' in r));
-  ok('and keeps the Hungarian ones aside', r.byLang.hu.picks.summary === huv.id);
+  ok('an in-line pick follows a number change', r.picks.summary === 'summary-v1' && eq(r.overrides, ov) && !('lang' in r));
+  const gap = L.langDiffs(model, r).hu, plus = x => [...new Set(['summary', ...gap, ...x])].sort(), sorted = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, [...v].sort()]));      // gap: lines Hungarian has no version at that number for
+  L.pickOnly(model, r, 'summary', 'summary-v3');
+  ok('a version for English only keeps the number the others print', r.picks.summary === 'summary-v3' && r.inLine?.summary === '1');
+  ok('langDiffs names the line for Hungarian', eq(sorted(L.langDiffs(model, r)), { hu: plus([]) }), JSON.stringify(L.langDiffs(model, r)));
   L.switchLang(r, 'hu', model);
-  ok('so switching again restores the Hungarian pick', r.picks.summary === huv.id && !r.byLang?.hu);
-  ok('switching to the language it is in does nothing', L.switchLang(r, 'hu', model) === false);
+  ok('Hungarian prints the in-line number; English keeps its own choice aside', r.picks.summary === 'summary-v1-hu' && r.byLang.en.picks.summary === 'summary-v3' && !r.inLine?.summary);
+  ok('…and the line says which number English uses', eq(L.lineState(model, r, 'summary').others, [{ lang: 'en', n: '3' }]) && eq(sorted(L.langDiffs(model, r)), { en: plus([]) }));
+  L.switchLang(r, 'en', model);
+  ok('the divergence survives switching away and back', r.picks.summary === 'summary-v3' && r.inLine?.summary === '1' && L.lineState(model, r, 'summary').own);
+  L.backInLine(model, r, 'summary');
+  ok('back in line clears it', r.picks.summary === 'summary-v1' && !r.inLine?.summary && eq(sorted(L.langDiffs(model, r)), { hu: [...gap].sort() }) && !gap.includes('summary'));
+  L.switchLang(r, 'hu', model);
+  L.pickOnly(model, r, 'summary', 'summary-v2-hu');
+  L.switchLang(r, 'en', model);
+  T.pickVersion(model, r, 'summary', 'summary-v4');
+  ok('a pick changes the line for every in-line language, not for one with its own', L.versionIn(model, r, 'summary', 'hu')?.id === 'summary-v2-hu' && L.versionIn(model, r, 'tagline', 'hu')?.id === 'tagline-v1-hu');
+  ok('switching to the language it is in does nothing', L.switchLang(r, 'en', model) === false);
+  ok('the old way (a copy in another language) puts the whole pick set aside', (() => { const c = clone(en), p = clone(c.picks ?? {}); L.switchLang(c, 'hu', model, { whole: true }); return eq(c.byLang?.en?.picks ?? {}, p) && eq(c.picks, {}); })());
   const m2 = clone(model);
-  R.deleteVersion(m2, huv.id, [r]);
-  ok('deleting a version drops a pick of it put aside too', r.picks.summary === undefined);
+  L.switchLang(r, 'hu', model);
+  R.deleteVersion(m2, 'summary-v2-hu', [r]);
+  ok('deleting a version drops a pick of it', r.picks.summary === undefined);
+}
+
+section('an older file: whole pick sets in byLang');
+{
+  const r = clone(en);
+  T.pickVersion(model, r, 'summary', 'summary-v1');
+  const unprinted = model.facts.find(f => !L.printedFactIds(model, r).some(p => p.fact === f.id) && L.hasVersionIn(model, f.id, 'hu'))?.id;
+  const huOf = f => model.variants.find(v => v.lang === 'hu' && model.facts.find(x => x.id === f).variants.includes(v.id))?.id;
+  const gap = (() => { const x = clone(r); x.byLang = { hu: {} }; return L.langDiffs(model, x).hu; })();
+  r.byLang = { hu: { picks: { summary: 'summary-v2-hu', tagline: 'tagline-v1-hu', ...(unprinted ? { [unprinted]: huOf(unprinted) } : {}) } } };
+  const back = S.loadResume(S.saveResume(model, r).file, model);
+  ok('it loads with no warning, its picks kept as they are', back.warnings.length === 0 && eq(back.recipe.byLang, r.byLang), back.warnings[0]);
+  ok('it validates', validate(S.save(model), back.recipe).errors.length === 0, validate(S.save(model), back.recipe).errors[0]);
+  ok('a stored pick at another number is that language\'s own choice', eq([...L.langDiffs(model, back.recipe).hu].sort(), [...new Set(['summary', ...gap])].sort()), JSON.stringify(L.langDiffs(model, back.recipe)));
+  L.switchLang(back.recipe, 'hu', model);
+  ok('switching: the divergence prints; the in-line pick and the line not printed are ignored', back.recipe.picks.summary === 'summary-v2-hu' && back.recipe.inLine?.summary === '1'
+    && back.recipe.picks.tagline === undefined && (!unprinted || back.recipe.picks[unprinted] === undefined), `${unprinted} ${JSON.stringify(back.recipe.picks)}`);
+  ok('a malformed inLine is dropped on load', (() => { const x = clone(en); x.inLine = { summary: 3, tagline: '1' }; const g = S.loadResume(S.saveResume(model, x).file, model); return eq(g.recipe.inLine, { tagline: '1' }) && g.warnings.some(w => /inLine/.test(w)); })());
 }
 
 section('ten languages');
@@ -158,6 +193,21 @@ section('dates in the resume’s language');
   ok('French', B.fmtMonth('2023-03', 'fr') === 'mars 2023', B.fmtMonth('2023-03', 'fr'));
   ok('Hungarian', B.fmtMonth('2023-03', 'hu') === '2023. márc.', B.fmtMonth('2023-03', 'hu'));
   ok('every one of the ten gives a month and the year', S.LANGS.every(l => /2023/.test(B.fmtMonth('2023-11', l)) && B.fmtMonth('2023-11', l).length > 5));
+}
+
+section('the version menu says which version each language prints');
+{
+  const { topHtml } = await import('../src/ui/parts.js');
+  const r = clone(en);
+  T.pickVersion(model, r, 'summary', 'summary-v1');
+  L.switchLang(r, 'hu', model); L.switchLang(r, 'en', model);
+  L.pickOnly(model, r, 'summary', 'summary-v3');
+  const menu = rr => topHtml({ vers: { fact: 'summary', n: '3', lang: rr.lang ?? 'en', line: L.lineState(model, rr, 'summary'), items: R.versionsIn(model, 'summary', rr.lang ?? 'en').map(v => ({ id: v.id, n: v.n, cur: v.id === rr.picks.summary, gist: '' })) } });
+  const out = menu(r), row = id => out.split('class="cvrow"').find(x => x.includes(`data-v="${id}"`)) ?? out.split('<button').find(x => x.includes(`data-v="${id}"`)) ?? '';
+  ok('the version Hungarian prints carries HU', /data-v="summary-v1"[^]*?class="cvlt"[^>]*>HU</.test(row('summary-v1')) && !/cvlt/.test(row('summary-v4')));
+  ok('"Only in EN" beside a version the others do not print, none beside theirs', /data-act="use-only" data-v="summary-v4"/.test(out) && !/data-act="use-only" data-v="summary-v1"/.test(out));
+  ok('"Back in line" beside the one in use, this language\'s own', /data-act="back-in-line"/.test(out));
+  ok('a resume in one language shows none of it', !/cvlt|use-only|back-in-line/.test(menu(clone(en))));
 }
 
 console.log(failed ? `\n${failed} language check(s) FAILED` : '\nall language checks passed');

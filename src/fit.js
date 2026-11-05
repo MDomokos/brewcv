@@ -8,6 +8,7 @@ import { isOmitted, hasBudget, weightOf, pinsOf, offOf } from './recipe.js';
 import { isLocked } from './model/lock.js';
 import { measureKey } from './render.js';
 import { wordText } from './model/skillbank.js';
+import { keepOthersInLine } from './model/lang.js';
 
 const LINE_CHARS = { 'us-letter': 84, a4: 73.5 };   // chars per line, measured
 
@@ -514,8 +515,9 @@ export async function fit(data, recipe, opts = {}){
   const auto = !Array.isArray(recipe.pages);
   if (auto && recipe.pageLimit === 0)
     return { error: 'Fit is off: this resume is set to as many pages as it needs, so nothing is shortened', errorKey: 'fit.off', recipe, rounds: 0 };
-  if (auto && typeof opts.layout === 'function') return fitAuto(data, recipe, opts);
-  return fitFixed(data, recipe, opts, false);
+  const res = auto && typeof opts.layout === 'function' ? await fitAuto(data, recipe, opts) : await fitFixed(data, recipe, opts, false);
+  if (res.recipe && res.recipe !== recipe) keepOthersInLine(data, recipe, res.recipe);      // a swap is this language's own; the other languages keep theirs
+  return res;
 }
 
 async function fitAuto(data, recipe, opts){

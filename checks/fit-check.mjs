@@ -19,6 +19,7 @@ import { fit, modelMeasure, modelFlow, cost, chosen, FILL_BAND, formatReport } f
 
 import { REPO, base, baseRecipe, grown, onePager, jobs } from './lib/fixtures.mjs';
 import { readLibrary, readRecipe } from '../scripts/lib/library.mjs';
+import * as LG from '../src/model/lang.js';
 const read = f => JSON.parse(fs.readFileSync(f, 'utf8'));
 
 let failed = 0, ran = 0;
@@ -311,6 +312,20 @@ section('a reordered job: the order of bullets survives Fit');
   const two = rev.slice(0, 2), loose = await fit(G, mk(two), { measure: modelMeasure(G, { ...g, usable: 5000 }), add: true });
   const got = hl(loose);
   ok('an added bullet does not reorder the ones already listed', !loose.error && got.length > 2 && got.filter(h => two.includes(h)).join() === two.join(), JSON.stringify([loose.error, got]));
+}
+
+section('a resume in two languages: a swap is the current language’s own');
+{
+  const g = { ...geometryFor(REPO, full), furniture: 6.7, skew: 0.93 };
+  const one = await fit(G, full, { measure: modelMeasure(G, g), add: false });
+  const twoIn = { ...structuredClone(full), byLang: { hu: {} } };
+  const two = await fit(G, twoIn, { measure: modelMeasure(G, g), add: false });
+  const swapped = Object.keys(one.recipe.picks ?? {}).filter(f => one.recipe.picks[f] !== full.picks?.[f] && String(G.variants.find(v => v.id === one.recipe.picks[f])?.n) !== LG.lineNumber(G, full, f));
+  ok('Fit swaps some version here (the case is live)', swapped.length > 0);
+  ok('one language: no in-line numbers are written', !one.recipe.inLine);
+  ok('two languages: the same page (picks, lines dropped, layout) as with one', JSON.stringify({ ...two.recipe, inLine: undefined, byLang: undefined }) === JSON.stringify({ ...one.recipe, inLine: undefined, byLang: undefined }));
+  ok('…and every swap keeps the number the other language prints', swapped.every(f => two.recipe.inLine?.[f] === LG.lineNumber(G, full, f) && LG.lineState(G, two.recipe, f).own), JSON.stringify(two.recipe.inLine));
+  ok('…and nothing else is marked', Object.keys(two.recipe.inLine ?? {}).every(f => swapped.includes(f)));
 }
 
 section('stability');

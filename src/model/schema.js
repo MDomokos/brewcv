@@ -373,6 +373,7 @@ export function loadResume(file, model = null){
   cleanLocked(recipe, warnings);
   cleanInStep(recipe, warnings);
   cleanLabelFrom(recipe, warnings);
+  cleanInLine(recipe, warnings);
   const snaps = readSnapshots(rb.snapshots, warnings);
   if (snaps.length) recipe.snapshots = snaps;
   return { recipe, frozen, warnings };
@@ -445,6 +446,15 @@ function cleanLabelFrom(recipe, warnings){
   }
   if (!isObj(a) || JSON.stringify(out) !== JSON.stringify(a)) warnings.push('labelFrom had something that is not text, or is not a list of texts by language; it was dropped');
   if (Object.keys(out).length) recipe.labelFrom = out; else delete recipe.labelFrom;
+}
+
+// recipe.inLine = { factId: number } is the number the resume's other languages print where this one has a version of its own (lang.js).
+function cleanInLine(recipe, warnings){
+  const a = recipe.inLine;
+  if (a === undefined) return;
+  const out = isObj(a) ? Object.fromEntries(Object.entries(a).filter(([, n]) => typeof n === 'string' && n.trim())) : {};
+  if (!isObj(a) || Object.keys(out).length !== Object.keys(a).length) warnings.push('inLine had something that is not a version number; it was dropped');
+  if (Object.keys(out).length) recipe.inLine = out; else delete recipe.inLine;
 }
 
 // recipe.terms = { factId: { lang: name } } is read from a file anyone can edit: anything else is dropped, so setTerm never spreads a string into keys.

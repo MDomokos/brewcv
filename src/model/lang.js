@@ -7,7 +7,7 @@ import { LANGS } from './schema.js';
 import { entriesOf } from './entries.js';
 import { localEntry, isLocal } from '../recipe.js';
 import { isLocked } from './lock.js';
-import { listedBullets, jobRefs, sectionList, chooseVariant, printedLabel, ownLabels, labelIn, isDraft, isArchive } from './resume.js';
+import { listedBullets, jobRefs, sectionList, chooseVariant, printedLabel, ownLabels, labelIn, isDraft, isArchive, pickVersion } from './resume.js';
 import { staleI18n } from './labels.js';
 import { wordText } from './skillbank.js';
 
@@ -204,15 +204,113 @@ export function stashOwn(recipe, model = null){
   recipe.byLang = { ...(recipe.byLang ?? {}), [recipe.lang ?? DEFAULT_LANG]: structuredClone(keep) };
 }
 
-// In place. Picks, one-off texts and holds are kept per language in `byLang`.
-export function switchLang(recipe, to, model = null){
+// ---- one resume in several languages ----
+// The lines, their order, the sections, jobs and skill words are shared; only a line's version may differ. Every language prints the line's
+// in-line number unless it chose a version of its own for that line. The current language's own choices are `recipe.inLine` ({ factId: the
+// number the other languages print }); a line in it with no pick has no version at that number here. Another language's own choices are its
+// versions in `byLang[L].picks`, kept only where the number differs. One-off texts and holds stay per language in `byLang`, as before.
+// (An older file holds whole pick sets in `byLang`: a stored pick counts only where it is a line printed now at another number.)
+export const resumeLangs = recipe => [...new Set([recipe?.lang ?? DEFAULT_LANG, ...Object.keys(recipe?.byLang ?? {})])];
+const versionById = (model, id) => (id ? (model.variants ?? []).find(v => v.id === id) ?? null : null);
+// the version of the line in `lang` at number n, one that can print
+const atNumber = (model, factId, lang, n) => versionsIn(model, factId, lang).find(v => String(v.n) === String(n) && !isDraft(v) && !isArchive(v)) ?? null;
+// a stored choice of `lang` that still holds: a version of the line, in that language, that can print, at another number than the line's
+const ownChoice = (model, vid, factId, lang, n) => {
+  const v = versionById(model, vid);
+  return v && langOf(v) === lang && !isDraft(v) && !isArchive(v) && String(v.n) !== String(n) && (model.facts ?? []).find(f => f.id === factId)?.variants.includes(v.id) ? v : null;
+};
+// The number the line prints at in the languages that are in line
+export function lineNumber(model, recipe, factId){
+  const own = recipe?.inLine?.[factId];
+  if (own != null) return String(own);
+  const v = chooseVariant(model, factId, recipe).v;
+  return v ? String(v.n) : null;
+}
+// The version another language of the resume prints on the line: its own choice, else the in-line number's. Null when it has none there.
+export function versionIn(model, recipe, factId, lang){
+  if (lang === (recipe?.lang ?? DEFAULT_LANG)) return chooseVariant(model, factId, recipe).v;
+  const n = lineNumber(model, recipe, factId);
+  if (n == null) return null;
+  const v = ownChoice(model, recipe.byLang?.[lang]?.picks?.[factId], factId, lang, n) ?? atNumber(model, factId, lang, n);
+  if (v) return v;
+  const d = chooseVariant(model, factId, { ...recipe, lang, picks: {} }).v;      // none at that number: its own default prints, as on a switch
+  return d && langOf(d) === lang ? d : null;
+}
+// The line's versions in the resume's languages: the number each other language prints (`others`), the in-line number (`n`), and whether
+// the current language prints a version of its own there (`own`).
+export function lineState(model, recipe, factId){
+  const lang = recipe?.lang ?? DEFAULT_LANG, langs = resumeLangs(recipe), n = lineNumber(model, recipe, factId), v = versionById(model, recipe?.picks?.[factId]);
+  const others = langs.filter(l => l !== lang).map(l => ({ lang: l, n: versionIn(model, recipe, factId, l)?.n ?? null })).filter(o => o.n != null);
+  return { langs, others, n, own: recipe?.inLine?.[factId] != null && !!v && String(v.n) !== n };
+}
+// Per other language of the resume, the printed lines where it uses another version number than the current language.
+export function langDiffs(model, recipe){
+  const lang = recipe?.lang ?? DEFAULT_LANG, facts = [...new Set(printedFactIds(model, recipe).map(p => p.fact))], out = {};
+  for (const l of resumeLangs(recipe)) if (l !== lang) out[l] = facts.filter(f => {
+    const a = chooseVariant(model, f, recipe).v, b = versionIn(model, recipe, f, l);
+    return a && b && String(a.n) !== String(b.n);
+  });
+  return out;
+}
+// A version for the current language alone: the other languages keep the line's in-line number.
+export function pickOnly(model, recipe, factId, vid){
+  const n = lineNumber(model, recipe, factId);
+  pickVersion(model, recipe, factId, vid);
+  if (n != null && String(versionById(model, vid)?.n) !== n) recipe.inLine = { ...recipe.inLine, [factId]: n };
+}
+// The current language prints the in-line number again (with no version at it here, the language's own default, as a missing line does).
+export function backInLine(model, recipe, factId){
+  const n = recipe.inLine?.[factId];
+  if (n == null) return false;
+  const at = atNumber(model, factId, recipe.lang ?? DEFAULT_LANG, n);
+  pickVersion(model, recipe, factId, at?.id ?? recipe.picks?.[factId]);
+  if (!at){ delete recipe.picks[factId]; recipe.inLine = { ...recipe.inLine, [factId]: String(n) }; }
+  return true;
+}
+// After Fit (`after` is `before` refitted): on a resume in several languages each version it swapped in is the current language's own
+// choice, as pickOnly makes, so the other languages keep the line's number. On a resume in one language nothing changes. In place.
+export function keepOthersInLine(model, before, after){
+  if (resumeLangs(before).length < 2) return after;
+  for (const [f, vid] of Object.entries(after.picks ?? {})){
+    if (vid === before.picks?.[f]) continue;
+    const n = lineNumber(model, before, f), v = versionById(model, vid);
+    if (n != null && v && String(v.n) !== n) after.inLine = { ...after.inLine, [f]: n };
+  }
+  return after;
+}
+
+// What `to` prints on each line of the resume as it is now (`probe`: the resume in `to` with no picks), and which lines are its own there.
+function linePicks(model, recipe, probe, theirs){
+  const to = probe.lang ?? DEFAULT_LANG, picks = {}, inLine = {};
+  const facts = new Set([...Object.keys(recipe.picks ?? {}), ...Object.keys(recipe.inLine ?? {}), ...printedFactIds(model, recipe).map(p => p.fact)]);
+  for (const f of facts){
+    const n = lineNumber(model, recipe, f);
+    if (n == null) continue;
+    const mine = ownChoice(model, theirs?.[f], f, to, n), at = mine ?? atNumber(model, f, to, n);
+    if (mine || !at) inLine[f] = n;      // its own choice, or no version at that number: the number comes back on the way out
+    // a line with no pick here stays without one while the language's default is already at that number
+    if (at && (mine || recipe.picks?.[f] || String(chooseVariant(model, f, probe).v?.n) !== n)) picks[f] = at.id;
+  }
+  return { picks, inLine };
+}
+
+// In place. The lines stay; each prints its version in `to` (see above). One-off texts and holds are kept per language in `byLang`.
+// `whole`: the old way, for a copy in another language (duplicate): the whole pick set is put aside and `to`'s is restored.
+export function switchLang(recipe, to, model = null, { whole = false } = {}){
   const from = recipe.lang ?? DEFAULT_LANG;
   if (from === to) return false;
   recipe.byLang = { ...(recipe.byLang ?? {}) };
   const { keep, own, ownMeta } = keepOf(recipe, model);
-  if (Object.keys(keep).length) recipe.byLang[from] = keep; else delete recipe.byLang[from];
   const back = recipe.byLang[to] ?? {};
-  recipe.picks = back.picks ?? {};
+  const format = isA4(recipe.format) ? a4FormatOf(to) : recipe.format;
+  const line = !whole && model ? linePicks(model, recipe, { ...recipe, lang: to, format, picks: {}, inLine: {} }, back.picks) : null;
+  if (line){
+    const mine = Object.fromEntries(Object.keys(recipe.inLine ?? {}).filter(f => recipe.picks?.[f] && String(versionById(model, recipe.picks[f])?.n) !== String(recipe.inLine[f])).map(f => [f, recipe.picks[f]]));
+    if (Object.keys(mine).length) keep.picks = mine; else delete keep.picks;
+  }
+  if (Object.keys(keep).length || line) recipe.byLang[from] = keep; else delete recipe.byLang[from];      // an empty entry still says the resume is in that language too
+  recipe.picks = line ? line.picks : back.picks ?? {};
+  if (line && Object.keys(line.inLine).length) recipe.inLine = line.inLine; else delete recipe.inLine;
   recipe.overrides = { ...(back.overrides ?? {}), ...own };
   const meta = { ...back.overrideMeta, ...ownMeta };
   if (Object.keys(meta).length) recipe.overrideMeta = meta; else delete recipe.overrideMeta;
@@ -220,7 +318,7 @@ export function switchLang(recipe, to, model = null){
   delete recipe.byLang[to];
   if (!Object.keys(recipe.byLang).length) delete recipe.byLang;
   if (to === DEFAULT_LANG) delete recipe.lang; else recipe.lang = to;
-  if (isA4(recipe.format)) recipe.format = a4FormatOf(to);
+  if (isA4(recipe.format)) recipe.format = format;
   return true;
 }
 
