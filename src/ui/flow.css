@@ -47,9 +47,10 @@ html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #hea
   interpolate-size: allow-keywords;      /* the open tab's min-width (its word) eases in with the rest, not as a step */
   transition: flex-grow .38s var(--way-ease), background-color .3s var(--way-ease), color .3s var(--way-ease), gap .38s var(--way-ease), padding .38s var(--way-ease), min-width .38s var(--way-ease), --wfill .3s var(--way-ease); }
 .wtab .way { flex: none; width: 22px; height: 22px; }
-.wtab .ww { display: inline-block; max-width: 0; opacity: 0; overflow: hidden; text-overflow: ellipsis; transition: max-width .38s var(--way-ease), opacity .2s; }
+/* a tab's word is shown whole or not at all: it goes at once when its tab closes, and fades in only once its tab has its width */
+.wtab .ww { display: inline-block; max-width: 0; opacity: 0; overflow: hidden; text-overflow: ellipsis; transition: max-width .38s var(--way-ease), opacity 0s; }
 .wtab.is-on { --wbg: var(--lv-res); flex-grow: 1.4; min-width: max-content; gap: 6px; padding: 0 10px; color: var(--chrome-ink); font-weight: 750; z-index: 4; }
-.wtab.is-on .ww { max-width: 160px; opacity: 1; transition-delay: 0s, .12s; }
+.wtab.is-on .ww { max-width: 160px; opacity: 1; transition: max-width .38s var(--way-ease), opacity .2s .4s; }
 .wtab.is-on .way { animation: way-pop .3s var(--way-ease); }
 .wtab:hover:not(.is-on):not([aria-disabled=true]) { --wbg: color-mix(in srgb, var(--lv-res) 60%, var(--lv-res-closed)); color: var(--chrome-ink); }
 .wtab:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
@@ -614,6 +615,7 @@ mark.fnd { background: var(--mark-soft); color: inherit; border-radius: 2px; pad
    header bands); every glyph is ink. A selection is a full ring, a tint or weight, never a bar on a box's left edge. Controls: 32px in the
    toolbar, 28px inside a card, 22px inline. ---- */
 .scr { --ce-w: 1080px; }
+#scr:has(.ce-doc) { overflow-anchor: none; }      /* what opens or closes never moves Career's scroll: the browser's anchoring is off, the shell keeps scrollTop */
 .scr .ce-bar { gap: 8px 12px; margin: 12px 0 20px max(0px, calc((100% - var(--ce-w)) / 2)); padding: 6px 10px; border-color: var(--line); border-radius: var(--r-l); background: var(--surface); box-shadow: var(--elev-low); }
 .scr .ce-bar .sw-q { width: 240px; }
 .scr .ce-bar :is(button.sm, .ce-langbtn) { height: var(--h-ctl); min-height: 0; padding: 0 12px; font-size: 13px; }
@@ -621,14 +623,17 @@ mark.fnd { background: var(--mark-soft); color: inherit; border-radius: 2px; pad
 .scr .ce-lang { display: inline-flex; gap: 2px; padding: 2px; }
 .scr .ce-lang button { display: inline-flex; align-items: center; gap: 4px; height: calc(var(--h-ctl) - 4px); padding: 0 8px; font: 600 12px/1 var(--font-ui); }
 .scr .ce-lang small { font-size: 10px; font-weight: 700; opacity: .75; }
-/* the fades: the top one once scrolled, under the toolbar, and the foot's while there is more; a mask, so the toolbar's own box stays whole. What
+/* the fades: the top one once scrolled, from the toolbar's top edge to a little under its foot, and the foot's while there is more; a mask, so the toolbar's own shape stays whole. What
    lies under the masked bands is the ground's plain tone, so the mat (always the one that scrolls) softens into it at the window's edges. */
-#scr:is(.ce-top, .ce-more) { --ce-a: 0px; --ce-b: 0px; --ce-z: 0px;
-  -webkit-mask-image: linear-gradient(var(--ink), var(--ink)), linear-gradient(to bottom, transparent var(--ce-a), var(--ink) var(--ce-b), var(--ink) calc(100% - var(--ce-z)), transparent 100%);
-  mask-image: linear-gradient(var(--ink), var(--ink)), linear-gradient(to bottom, transparent var(--ce-a), var(--ink) var(--ce-b), var(--ink) calc(100% - var(--ce-z)), transparent 100%);
-  -webkit-mask-size: var(--ce-bw, 0px) var(--ce-bh, 0px), 100% 100%; mask-size: var(--ce-bw, 0px) var(--ce-bh, 0px), 100% 100%;
-  -webkit-mask-position: var(--ce-bx, 0px) var(--ce-bt, 0px), 0 0; mask-position: var(--ce-bx, 0px) var(--ce-bt, 0px), 0 0; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
-#scr.ce-top { --ce-a: calc(var(--ce-bb, 0px) - 4px); --ce-b: calc(var(--ce-bb, 0px) + 32px); }
+#scr:is(.ce-top, .ce-more) { --ce-a: 0px; --ce-b: 0px; --ce-z: 0px; --r: var(--ce-br, 0px); --d: calc(2 * var(--r));
+  --ce-dot: radial-gradient(circle closest-side, var(--ink) 98%, transparent 100%);
+  -webkit-mask-image: linear-gradient(var(--ink), var(--ink)), linear-gradient(var(--ink), var(--ink)), var(--ce-dot), var(--ce-dot), var(--ce-dot), var(--ce-dot), linear-gradient(to bottom, transparent var(--ce-a), var(--ink) var(--ce-b), var(--ink) calc(100% - var(--ce-z)), transparent 100%);
+  mask-image: linear-gradient(var(--ink), var(--ink)), linear-gradient(var(--ink), var(--ink)), var(--ce-dot), var(--ce-dot), var(--ce-dot), var(--ce-dot), linear-gradient(to bottom, transparent var(--ce-a), var(--ink) var(--ce-b), var(--ink) calc(100% - var(--ce-z)), transparent 100%);
+  /* the toolbar's own shape stays whole: two crossed bands and its four rounded corners; everything beside it, its corners included, fades */
+  --ce-ms: var(--ce-bw, 0px) calc(var(--ce-bh, 0px) - var(--d)), calc(var(--ce-bw, 0px) - var(--d)) var(--ce-bh, 0px), var(--d) var(--d), var(--d) var(--d), var(--d) var(--d), var(--d) var(--d), 100% 100%;
+  --ce-mp: var(--ce-bx, 0px) calc(var(--ce-bt, 0px) + var(--r)), calc(var(--ce-bx, 0px) + var(--r)) var(--ce-bt, 0px), var(--ce-bx, 0px) var(--ce-bt, 0px), calc(var(--ce-bx, 0px) + var(--ce-bw, 0px) - var(--d)) var(--ce-bt, 0px), var(--ce-bx, 0px) calc(var(--ce-bt, 0px) + var(--ce-bh, 0px) - var(--d)), calc(var(--ce-bx, 0px) + var(--ce-bw, 0px) - var(--d)) calc(var(--ce-bt, 0px) + var(--ce-bh, 0px) - var(--d)), 0 0;
+  -webkit-mask-size: var(--ce-ms); mask-size: var(--ce-ms); -webkit-mask-position: var(--ce-mp); mask-position: var(--ce-mp); -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+#scr.ce-top { --ce-a: var(--ce-bt, 0px); --ce-b: calc(var(--ce-bb, 0px) + 16px); }      /* gone at the toolbar's top, back in full a little under its foot */
 #scr.ce-more { --ce-z: 36px; }
 html[data-drink="tea"] body.has-scr:has(#scr .ce-doc):not(:has(.matroll)) { background: linear-gradient(var(--mat-wash), var(--mat-wash)), var(--mat-b); }
 html[data-drink="coffee"] body.has-scr:has(#scr .ce-doc):not(:has(.matroll)) { background: var(--canvas); }
@@ -711,12 +716,14 @@ html[data-drink="coffee"] body.has-scr:has(#scr .ce-doc):not(:has(.matroll)) { b
 .scr .ce-ch .ce-sum { flex: 1 0 100%; margin-top: 2px; color: var(--ink-soft); font: normal 11.5px/1.3 var(--font-ui); }
 .scr .ce-ch .d { padding-top: 1px; color: var(--ink-soft); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .scr .ce-ch .ce-dt { grid-column: 3; grid-row: 1; }
-.scr .ce-ch .node { position: absolute; left: -42px; top: 4px; display: grid; place-items: center; width: 32px; height: 32px; box-sizing: border-box; border: 2px solid var(--line-strong); border-radius: var(--r-round); background: color-mix(in srgb, var(--hk, var(--hue-6)) var(--hue-tint), var(--surface)); }
+/* the marker on the spine: the kind's icon on its tint, a rounded square as on the cards, centred on the line, which runs behind it */
+.scr .ce-ch .node { position: absolute; left: -40px; top: 4px; display: grid; place-items: center; width: 32px; height: 32px; box-sizing: border-box; border-radius: var(--r-s); background: color-mix(in srgb, var(--hk, var(--hue-6)) var(--hue-tint), var(--surface)); }
+.scr .ce-doc :is(.node, .chip) > .si { width: 24px; height: 24px; }
 .scr .ce-cline { position: absolute; right: 8px; bottom: 6px; }
 /* the right lane: its marker sits in the card, the dates under the title */
 @container (min-width: 860px){
   .scr .ce-card.k2 .ce-ch { grid-template-columns: 32px minmax(0, 1fr) var(--h-sm); }
-  .scr .ce-card.k2 .ce-ch .node { position: static; grid-column: 1; grid-row: 1 / span 3; border-radius: var(--r-s); border: 0; }
+  .scr .ce-card.k2 .ce-ch .node { position: static; grid-column: 1; grid-row: 1 / span 3; }
   .scr .ce-card.k2 .ce-ch .t { display: contents; }
   .scr .ce-card.k2 .ce-ch .t b { grid-column: 2; grid-row: 1; }
   .scr .ce-card.k2 .ce-ch .d { grid-column: 2; grid-row: 2; padding: 1px 0 0; }
@@ -822,7 +829,7 @@ html[data-drink="coffee"] body.has-scr:has(#scr .ce-doc):not(:has(.matroll)) { b
 .scr .ce-se :is(.ce-eh, .ce-er) { display: grid; grid-template-columns: var(--cols); column-gap: 8px; align-items: center; }
 .scr .ce-se .ce-eh { padding-bottom: 2px; border-bottom: 1px solid var(--line); color: var(--ink-soft); font: 700 11px/1.6 var(--font-label, var(--font-ui)); }
 .scr .ce-se .ce-ef { display: contents; }
-.scr .ce-fi, .scr .ce-inl :is(input, select), .scr .ce-f input { box-sizing: border-box; width: 100%; min-width: 0; height: var(--h-row); padding: 0 8px; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: var(--field); color: var(--ink); font: 13px var(--font-ui); }
+.scr .ce-fi, .scr .ce-inl :is(input, select), .scr .ce-f input:not([type=radio]) { box-sizing: border-box; width: 100%; min-width: 0; height: var(--h-row); padding: 0 8px; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: var(--field); color: var(--ink); font: 13px var(--font-ui); }
 .scr .ce-ls { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--ink-soft); font: 600 11.5px/1 var(--font-ui); white-space: nowrap; }
 .scr .ce-ls .todo { color: var(--ink); text-decoration: underline dotted; }
 .scr .ce-same { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font: 12px/1 var(--font-ui); cursor: pointer; }
@@ -848,7 +855,7 @@ html[data-drink="coffee"] body.has-scr:has(#scr .ce-doc):not(:has(.matroll)) { b
 /* adding: a card at the top of its place, or a row in its card */
 .scr .ce-addcard { margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--accent); border-radius: var(--r-m); background: var(--surface); box-shadow: var(--elev-low); }
 .scr .ce-addh { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 14px; }
-.scr .ce-addh .node { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-round); background: color-mix(in srgb, var(--hk) var(--hue-tint), var(--surface)); }
+.scr .ce-addh .node { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-s); background: color-mix(in srgb, var(--hk) var(--hue-tint), var(--surface)); }
 .scr .ce-addh small { color: var(--ink-soft); font-size: 12px; }
 .scr .ce-addf { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
 .scr .ce-f { display: grid; gap: 3px; color: var(--ink-soft); font-size: 11.5px; }
@@ -914,3 +921,23 @@ body:not([data-phone=true]) #head .docname.is-file { flex-direction: column; gap
 .scr .ce-yr { margin-top: calc(12px * var(--cz, 1)); margin-bottom: calc(4px * var(--cz, 1)); }
 .scr .ce-ch { padding-block: calc(8px * var(--cz, 1)) calc(9px * var(--cz, 1)); }
 .scr .ce-ch .t { row-gap: calc(2px * var(--cz, 1)); }
+
+/* the kind editor (Career's own): presets, swatches, icons, the shape, and deleting with what becomes of the entries */
+.scr .ce-doc :is(.ce-box, .ce-addcard, .ce-card, .ce-about) { scroll-margin-top: 84px; }
+.scr .ce-detf .grow { flex: 1; }
+.scr .ce-kps, .scr .ce-sws, .scr .ce-kis, .scr .ce-kpls { display: flex; flex-wrap: wrap; gap: 6px; }
+.scr .ce-kp { display: inline-flex; align-items: center; gap: 6px; height: var(--h-row); padding: 0 10px; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: var(--surface); color: var(--ink); font: 600 12.5px/1 var(--font-ui); box-shadow: none; }
+.scr .ce-kp:hover:not(:disabled) { background: var(--hover); }
+.scr .ce-kp:disabled { opacity: .45; cursor: default; }
+.scr .ce-sw6 { width: var(--h-row); height: var(--h-row); padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: var(--sw); box-shadow: none; }
+.scr .ce-ki { display: grid; place-items: center; width: var(--h-row); height: var(--h-row); padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: var(--surface); color: var(--ink); box-shadow: none; }
+.scr :is(.ce-sw6, .ce-ki)[aria-pressed=true] { outline: 2px solid var(--ink); outline-offset: 1px; }
+.scr .ce-kpl { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: 12.5px; }
+.scr .ce-kindcard .ce-note { margin: 8px 0 0; color: var(--ink-soft); font-size: 12px; }
+.scr .ce-kdel { margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--bad); border-radius: var(--r-s); }      /* dashed: a warning */
+.scr .ce-kdel p { margin: 0 0 6px; font-size: 12.5px; }
+.scr .ce-kdel select { height: var(--h-row); }
+/* About you's profiles (JSON Resume basics.profiles): a row each, network, user name and link */
+.scr .ce-profs { display: grid; gap: 4px; }
+.scr .ce-prof { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr) var(--h-sm); gap: 6px; align-items: center; }
+.scr .ce-kpl input { width: auto; height: auto; margin: 0; accent-color: var(--ink); }

@@ -741,7 +741,7 @@ export function updateAbout(model, fields, lang = DEFAULT_LANG){
   b.location = { ...(b.location ?? {}), city: after.city };
   if (after.rights) b.rights = after.rights; else delete b.rights;
   // the rest of the address is kept; the contact line prints city, email and phone only
-  setPlain(b.location, fields, ['address', 'postalCode', 'region']);
+  setPlain(b.location, fields, ['address', 'postalCode', 'region', 'countryCode']);
   if (lang === DEFAULT_LANG) b.label = after.label;
   const res = {};
   const d = b.display ?? {};

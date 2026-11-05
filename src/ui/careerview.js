@@ -16,7 +16,7 @@ import { fmtMonth, presentIn, setEducation, setSummary, slug } from '../model/bu
 import { save, serialize } from '../model/schema.js';
 import { t, h, errText } from '../i18n/index.js';
 import { icon } from './icons.js';
-import { kindChip, kindHue } from './career.js';
+import { kindChip, kindHue, SWATCH_HUES } from './career.js';
 import { monthFieldHtml, initMonthPick } from './monthpick.js';
 
 let C = null;
@@ -43,13 +43,15 @@ const S = {
   skWrite: null, skAdd: null, iwrite: null, iadd: false,      // a skill word or an interest being written, a group or the interests getting a word
   ctx: null,              // what the sidebar speaks of: { card } | { line } | { sec } | null
   todo: null,             // the language whose to-write list is open in the sidebar
+  kind: null,             // the kind editor: { id | null, draft, del }
   focus: null,            // a selector to focus after the next draw
+  reveal: false,          // scroll what gets the focus into view (an add, a kind, a jump from the sidebar); nothing else scrolls
   drag: null,
 };
-const anyOpen = () => !!(S.fan.size || S.open.size || S.all || S.editing || S.adding || S.inl || S.secEdit || S.detail || S.about || S.skWrite || S.skAdd || S.iwrite || S.iadd || S.ctx);
+const anyOpen = () => !!(S.fan.size || S.open.size || S.all || S.editing || S.adding || S.inl || S.secEdit || S.detail || S.about || S.skWrite || S.skAdd || S.iwrite || S.iadd || S.ctx || S.kind);
 // one editor at a time: opening any editor closes the others; `card` is the entry that stays open
 function solo(card = null){
-  Object.assign(S, { editing: null, adding: null, inl: null, secEdit: null, detail: null, about: false, skWrite: null, skAdd: null, iwrite: null, iadd: false, all: false, ctx: card ? { card } : null });
+  Object.assign(S, { editing: null, adding: null, kind: null, inl: null, secEdit: null, detail: null, about: false, skWrite: null, skAdd: null, iwrite: null, iadd: false, all: false, ctx: card ? { card } : null });
   S.fan.clear(); S.open.clear(); S.drafts.clear();
   if (card) S.open.add(card);
   closePop();
@@ -202,7 +204,7 @@ function timeline(d, lang, q){
   const lane = (xs, k) => xs.filter(x => by.has(x.id)).map(x => card(by.get(x.id), lang, q, k)).join('');
   const bands = K.timelineLayout(rec(), { lang, hideArchived: true }).bands.map(b => ({ y: b.year, main: lane(b.main, 1), side: lane(b.side, 2) })).filter(b => b.main || b.side);
   const rows = bands.map(b => `<div class="ce-yr">${esc(b.y ?? t('career.nowBand'))}</div><div class="ce-yrow"><div class="ce-lane">${b.main}</div><div class="ce-lane">${b.side}</div></div>`).join('');
-  const top = S.adding && !['certificates', 'publications'].includes(S.adding) && !isListKind(S.adding) ? addCard(S.adding) : '';
+  const top = S.kind ? kindEditor() : S.adding && !['certificates', 'publications'].includes(S.adding) && !isListKind(S.adding) ? addCard(S.adding) : '';
   const plus = (label, attrs) => `<button type="button" class="ce-hadd" ${attrs} title="${esc(label)}" aria-label="${esc(label)}">${icon('plus', { role: 'inline' })}</button>`;
   const heads = `<div class="ce-lhs"><span class="ce-lh"><span>${h('career.colMain')}</span>${plus(t('cv.addJob'), 'data-act="cv-add" data-what="work"')}</span>
     <span class="ce-lh"><span>${h('career.colSide')}</span>${plus(t('cv.addSide'), 'data-act="cv-menu" data-menu="side" aria-haspopup="menu" aria-expanded="false"')}</span></div>`;
@@ -215,7 +217,9 @@ function aboutForm(){
   const tp = document.createElement('template'); tp.innerHTML = C.career.panel({ kind: 'header' });
   const boxes = [...tp.content.querySelectorAll('.detbox[data-form=about]')], pr = tp.content.querySelector('.photo-row');
   const grp = (lab, html) => (html ? `<div class="ce-fg"><span class="ce-fl">${lab}</span>${html}</div>` : '');
-  return `<div class="ce-det ce-aboutform">${grp(h('cv.photo'), pr?.outerHTML)}${grp(h('cv.nameHeadline'), boxes[0]?.outerHTML)}${grp(h('cv.contactRights'), boxes[1]?.outerHTML)}<div class="ce-detf">${btn('about', h('cv.done'))}</div></div>`;
+  const profs = (rec().basics?.profiles ?? []).map((x, i) => `<div class="ce-prof" data-ce-prof="${i}">${['network', 'username', 'url'].map(k => `<input class="ce-fi ce-ed" data-ce-pk="${k}" value="${esc(x?.[k] ?? '')}" placeholder="${esc(t(`cv.prof.${k}`))}" aria-label="${esc(t(`cv.prof.${k}`))}" autocomplete="off" spellcheck="false">`).join('')}${xBtn(`data-act="cv-profdel" data-i="${i}"`, x?.network || t('cv.profile'))}</div>`).join('');
+  return `<div class="ce-det ce-aboutform">${grp(h('cv.photo'), pr?.outerHTML)}${grp(h('cv.nameHeadline'), boxes[0]?.outerHTML)}${grp(h('cv.contactRights'), boxes[1]?.outerHTML)}
+    ${grp(h('cv.profiles'), `<div class="ce-profs">${profs}<div class="ce-sfoot"><button type="button" class="ce-add" data-act="cv-profadd">${h('cv.addProfile')}</button></div></div>`)}<div class="ce-detf">${btn('about', h('cv.done'))}</div></div>`;
 }
 function about(d, lang, q){
   const a = d.about, ids = aboutIds();
@@ -347,9 +351,10 @@ function secCard(s, lang, q){
   else body = s.items.filter(x => hit(`${x.title} ${x.sub ?? ''}`)).map(x => itemRow(s, x, lang, lens)).join('');
   if (q && !body) return '';
   const sw = lens ? `<label class="ce-sw">${cbx(`data-act="cv-secon" data-id="${esc(lens.sid)}"`, lens.on, t('cv.showOn', { what: s.label }))}<span>${h('cv.onResume')}</span></label>` : '';
+  const kset = K.kindOf(rec(), s.kind) ? `<button type="button" class="ce-dt ce-sp" data-act="cv-kind-edit" data-id="${esc(s.kind)}" title="${esc(t('career.kindSettings', { name: s.label }))}" aria-label="${esc(t('career.kindSettings', { name: s.label }))}">⚙</button>` : '';
   const hadd = ed ? '' : `<button type="button" class="ce-hadd" data-act="cv-add" data-what="${esc(s.kind)}" aria-label="${esc(t('cv.addThing', { thing: thingOf(s.kind) }))}" title="${esc(t('cv.addThing', { thing: thingOf(s.kind) }))}">${icon('plus', { role: 'inline' })}<span class="w">${h('cv.addThing', { thing: thingOf(s.kind) })}</span></button>`;
   return `<section class="ce-box${ed ? ' is-editing' : ''}${lens && !lens.on ? ' is-off' : ''}" id="ce-${esc(s.id)}" data-ce-sec="${esc(s.kind)}" style="--hk:${kindHue(s.kind)}">
-    <h3><span class="chip">${kindChip(s.kind)}</span><span class="nm">${esc(s.label)}</span><span class="n">${s.count}</span>${s.toWrite ? `<span class="tw">${h('cv.toWriteIn', { n: s.toWrite, lang: U(lang) })}</span>` : ''}${sw}${hadd}${pencil('cv-secedit', t('cv.editThing', { what: s.label }), ed, `data-k="${esc(s.kind)}"`, ' ce-sp')}</h3>
+    <h3><span class="chip">${kindChip(s.kind)}</span><span class="nm">${esc(s.label)}</span><span class="n">${s.count}</span>${s.toWrite ? `<span class="tw">${h('cv.toWriteIn', { n: s.toWrite, lang: U(lang) })}</span>` : ''}${sw}${hadd}${kset}${pencil('cv-secedit', t('cv.editThing', { what: s.label }), ed, `data-k="${esc(s.kind)}"`, ' ce-sp')}</h3>
     ${S.adding === s.kind ? addCard(s.kind) : ''}${body || `<p class="ce-none">${h('cv.nothingYet')}</p>`}${!q && !ed && S.inl === s.kind ? inlineAdd(s.kind) : ''}</section>`;
 }
 const thingOf = k => (THING[k] ? t(THING[k]) : (K.kindName(rec(), k, L()) ?? k).toLowerCase());
@@ -394,14 +399,68 @@ function inlineAdd(w){
   }[w] ?? '';
   return `<div class="ce-inl is-${esc(w)}">${body}${btn('inlsave', h('cv.add'), '', 'pri')}${btn('inlcancel', h('btn.cancel'), '', 'ghost')}</div>`;
 }
+// ---- a kind of your own, made and changed in Career: a preset to start from, the name, colour, icon, shape and what its organisation is called;
+// an existing kind changes as you go, and deleting it takes its entries with it or moves them to another kind of its shape ----
+const recipesOf = x => [x.cur, ...(x.resumes ?? [])].filter(Boolean);
+function newKind(p = null){
+  const d = { name: { en: '' }, colour: 2, icon: 'star', place: 'timeline', org: t('career.f.org'), store: 'projects' };
+  return p ? applyPreset(d, p) : d;
+}
+function applyPreset(d, p){
+  const x = K.KIND_PRESETS[p], lang = L();
+  const out = { ...structuredClone(x), name: { ...d.name, en: x.name.en ? t(`career.preset.${p}`) : d.name.en ?? '' }, org: x.org ? t(`career.presetOrg.${p}`) : d.org };
+  if (lang !== 'en' && x.name.en) out.name[lang] = t(`career.preset.${p}`);
+  return out;
+}
+function readKind(){
+  const d = S.kind?.draft, card = document.getElementById('ce-kindcard'); if (!d || !card) return;
+  const n = card.querySelector('[data-ce-k=name]')?.value; if (n !== undefined) d.name[L()] = n;
+  const o = card.querySelector('[data-ce-k=org]')?.value; if (o !== undefined) d.org = o;
+}
+function kindName(d){
+  if (!String(d.name.en ?? '').trim() && L() !== 'en') d.name.en = d.name[L()];
+  return String(d.name.en ?? '').trim();
+}
+// an existing kind: what changed is saved at once, one undo step each
+function saveKindNow(){
+  readKind();
+  const { id, draft: d } = S.kind ?? {};
+  if (!id || !d) return;
+  if (!kindName(d)) return C.toast(t('error.kindName'), 'warn');
+  commit(x => { K.updateKind(x.record, id, d, recipesOf(x), x.cur); }, t('undo.editKind'));
+}
+function createKind(){
+  readKind();
+  const d = S.kind.draft;
+  if (!kindName(d)){ C.toast(t('error.kindName'), 'warn'); S.focus = '#ce-kindcard [data-ce-k=name]'; draw(); return; }
+  let made;
+  if (!commit(x => { made = K.createKind(x.record, d); }, t('undo.newKind'), t('career.kindCreated', { name: d.name[L()] || d.name.en }))) return;
+  S.kind = null; S.adding = made; S.focus = '#ce-addcard input'; S.reveal = true;      // its first entry, in its own place
+  draw();
+}
+function kindEditor(){
+  const m = rec(), { id, draft: d, del } = S.kind, lang = L(), hue = SWATCH_HUES[(d.colour ?? 0) % 6];
+  const presets = id ? '' : `<div class="ce-f wide"><span>${h('career.startFrom')}</span><div class="ce-kps">${['volunteering', 'awards', 'talks', 'blank'].map(p => `<button type="button" class="ce-kp" data-act="cv-kpreset" data-p="${p}" ${['volunteering', 'awards'].includes(p) && K.kindsOf(m).some(k => k.store === K.KIND_PRESETS[p].store) ? 'disabled' : ''}>${icon(K.KIND_PRESETS[p].icon, { role: 'control' })}${h(`career.preset.${p}`)}</button>`).join('')}</div></div>`;
+  const swatches = SWATCH_HUES.map((c, i) => `<button type="button" class="ce-sw6" data-act="cv-kcolour" data-i="${i}" style="--sw:var(--hue-${c})" aria-pressed="${(d.colour ?? 0) % 6 === i}" aria-label="${esc(t('career.colourN', { n: i + 1 }))}"></button>`).join('');
+  const icons = K.KIND_ICONS.map(ic => `<button type="button" class="ce-ki" data-act="cv-kicon" data-i="${ic}" aria-pressed="${d.icon === ic}" aria-label="${esc(t(`career.iconName.${ic}`))}" title="${esc(t(`career.iconName.${ic}`))}">${icon(ic, { role: 'control' })}</button>`).join('');
+  const radio = (v, label) => `<label class="ce-kpl"><input type="radio" name="ce-kplace" value="${v}"${d.place === v ? ' checked' : ''}${d.store !== 'projects' ? ' disabled' : ''}>${h(label)}</label>`;
+  const place = id ? `<p class="ce-note">${h(d.place === 'list' ? 'career.placeList' : 'career.placeTimeline')}</p>` : `<div class="ce-f wide"><span>${h('career.writeBullets')}</span><div class="ce-kpls">${radio('timeline', 'career.placeYes')}${radio('list', 'career.placeNo')}</div></div>`;
+  const store = d.store === 'volunteer' ? 'career.storeVolunteer' : d.store === 'awards' ? 'career.storeAwards' : id ? 'career.storeProjects' : null;
+  const others = !del ? [] : [...(d.place === 'timeline' ? [['project', t('career.kind.project')]] : []), ...K.kindsOf(m).filter(k => k.id !== id && k.place === d.place).map(k => [k.id, K.kindName(m, k.id, lang)])];
+  const ask = !del ? '' : `<div class="ce-kdel" role="alert"><p>${h('career.deleteKindAsk', { n: K.entriesOfKind(m, id).length })}</p><div class="ce-detf">${others.length ? `<select data-ce-k="move" aria-label="${esc(t('career.moveThem'))}">${others.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select>${btn('kdelmove', h('career.moveThem'))}` : ''}${btn('kdelall', h('career.deleteThem', { n: K.entriesOfKind(m, id).length }), '', 'del')}${btn('kdelno', h('btn.cancel'), '', 'ghost')}</div></div>`;
+  const foot = id ? `${btn('kdone', h('cv.done'))}<span class="grow"></span>${btn('kdel', h('career.deleteKind'), '', 'del')}` : `${btn('kcreate', h('career.createKind'), '', 'pri')}${btn('kcancel', h('btn.cancel'), '', 'ghost')}`;
+  return `<div class="ce-addcard ce-kindcard" id="ce-kindcard" style="--hk:var(--hue-${hue})"><div class="ce-addh"><span class="node">${icon(d.icon, { role: 'header' })}</span><b>${esc(id ? K.kindName(m, id, lang) : t('career.newKind'))}</b><small>${h('career.kindIntro')}</small></div>
+    <div class="ce-addf">${presets}<label class="ce-f"><span>${h('career.f.name')}</span><input class="ce-ed" data-ce-k="name" value="${esc(d.name[lang] ?? '')}" placeholder="${esc(d.name.en || t('career.kindNamePh'))}" autocomplete="off"></label>
+    <label class="ce-f"><span>${h('career.orgCalled')}</span><input class="ce-ed" data-ce-k="org" value="${esc(d.org ?? '')}" placeholder="${esc(t('career.orgPh'))}" autocomplete="off"></label>
+    <div class="ce-f wide"><span>${h('career.colour')}</span><div class="ce-sws">${swatches}</div></div>
+    <div class="ce-f wide"><span>${h('career.icon')}</span><div class="ce-kis">${icons}</div></div>${place}</div>
+    ${store ? `<p class="ce-note">${h(store)}</p>` : ''}<p class="ce-note">${h('career.kindSection')}</p>${ask}<div class="ce-detf">${del ? '' : foot}</div></div>`;
+}
 function startAdd(w){
   solo(null);
-  if (w === 'line'){
-    const e = doc(rec(), L()).entries.find(x => x.kind === 'work');
-    if (!e) return startAdd('work');
-    solo(e.grp); S.editing = { kind: 'line', entry: e.grp }; S.focus = '#ce-ta';
-  } else if (SMALL.has(w)) { S.inl = w; S.focus = '.ce-inl [data-ce-inlin]'; }
+  if (SMALL.has(w)){ S.inl = w; S.focus = '.ce-inl [data-ce-inlin]'; }
   else { S.adding = w; S.focus = '#ce-addcard input'; }
+  S.reveal = true;
   draw();
 }
 function saveAdd(){
@@ -603,14 +662,16 @@ function addGroups(scope){
   const m = rec(), ks = K.kindsOf(m), name = k => K.kindName(m, k.id, L());
   const kt = ks.filter(k => k.place !== 'list').map(k => [k.id, name(k), k.id]), kl = ks.filter(k => k.place === 'list').map(k => [k.id, name(k), k.id]);
   if (scope === 'side') return [['', [['education', t('career.kind.education'), 'education'], ['project', t('career.kind.project'), 'project'], ...kt]]];
-  return [[t('cv.mTimeline'), [['work', t('career.kind.work'), 'work'], ['line', t('cv.mLine'), 'work'], ['education', t('career.kind.education'), 'education'], ['project', t('career.kind.project'), 'project'], ...kt]],
-    [t('cv.mLists'), [...['skills', 'languages', 'certificates', 'publications', 'interests', 'references'].map(k => [k, t(`cv.sec.${k}`), k]), ...kl]],
+  const preset = p => (ks.some(k => k.store === K.KIND_PRESETS[p].store) ? [] : [[`~p:${p}`, t(`career.preset.${p}`), '']]);      // JSON Resume's volunteer and awards are kinds made from a preset
+  return [[t('cv.mTimeline'), [['work', t('career.kind.work'), 'work'], ['education', t('career.kind.education'), 'education'], ['project', t('career.kind.project'), 'project'], ...kt, ...preset('volunteering')]],
+    [t('cv.mLists'), [...['skills', 'languages', 'certificates', 'publications', 'interests', 'references'].map(k => [k, t(`cv.sec.${k}`), k]), ...kl, ...preset('awards')]],
     ...(m.basics?.summary ? [] : [[t('cv.aboutYou'), [['summary', t('cv.summary'), 'summary']]]]),
     ['', ks.length < K.MAX_KINDS ? [['~kind', t('career.somethingElse'), '']] : []]].filter(g => g[1].length);
 }
-const cog = k => (K.kindOf(rec(), k) ? `<button type="button" class="kset" data-act="c-kind-edit" data-id="${esc(k)}" title="${esc(t('career.kindSettings', { name: K.kindName(rec(), k, L()) }))}" aria-label="${esc(t('career.kindSettings', { name: K.kindName(rec(), k, L()) }))}">⚙</button>` : '');
-const addItem = ([k, ti, hk]) => (k === '~kind'
-  ? `<button type="button" role="menuitem" data-act="c-kind-new"><span class="ai">${icon('plus', { role: 'header' })}</span><b>${esc(ti)}</b></button>`
+const cog = k => (K.kindOf(rec(), k) ? `<button type="button" class="kset" data-act="cv-kind-edit" data-id="${esc(k)}" title="${esc(t('career.kindSettings', { name: K.kindName(rec(), k, L()) }))}" aria-label="${esc(t('career.kindSettings', { name: K.kindName(rec(), k, L()) }))}">⚙</button>` : '');
+const presetIcon = p => { const x = K.KIND_PRESETS[p]; return `<span class="ai" style="--hk:var(--hue-${SWATCH_HUES[x.colour % 6]})">${icon(x.icon, { role: 'header' })}</span>`; };
+const addItem = ([k, ti, hk]) => (k === '~kind' ? `<button type="button" role="menuitem" data-act="cv-kind-new"><span class="ai">${icon('plus', { role: 'header' })}</span><b>${esc(ti)}</b></button>`
+  : k.startsWith('~p:') ? `<button type="button" role="menuitem" data-act="cv-kind-new" data-p="${esc(k.slice(3))}">${presetIcon(k.slice(3))}<b>${esc(ti)}</b></button>`
   : `<div class="addrowk"><button type="button" role="menuitem" data-act="cv-add" data-what="${esc(k)}"><span class="ai" style="--hk:${kindHue(hk)}">${kindChip(hk)}</span><b>${esc(ti)}</b></button>${cog(k)}</div>`);
 const addMenu = scope => `<div class="addm inline-menu" role="menu" aria-label="${esc(t('career.add'))}">${addGroups(scope).map(([g, xs]) => `${g ? `<div class="ce-mg">${esc(g)}</div>` : xs.length && scope !== 'side' ? '<hr>' : ''}${xs.map(addItem).join('')}`).join('')}</div>`;
 const langMenu = () => `<div class="inline-menu" role="menu" aria-label="${esc(t('cv.language'))}">${languages().map(l => { const n = toWriteIn(l); return `<button type="button" role="menuitem" data-act="cv-lang" data-l="${l}"><b>${esc(lname(l))}${l === L() ? ' ✓' : ''}</b><small>${n ? h('cv.nToWrite', { n }) : h('cv.done')}</small></button>`; }).join('')}</div>`;
@@ -624,16 +685,21 @@ function jsonResume(m, lang){
   const d = doc(m, lang), b = m.basics ?? {}, a = d.about, ents = k => d.entries.filter(e => e.kind === k);
   const sk = d.secs.find(s => s.kind === 'skills')?.groupsOf ?? [], items = k => d.secs.find(s => s.kind === k)?.items ?? [];
   const entry = (e, f) => ({ ...f, startDate: e.start || undefined, endDate: e.end || undefined, highlights: e.lines.map(l => one(l.text)) });
+  const store = k => K.kindOf(m, k)?.store, kinds = (st, place) => K.kindsOf(m).filter(k => k.store === st && (place ? k.place === place : true)).map(k => k.id);
   return { $schema: 'https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json',
     basics: { name: a.name.text, label: one(a.tagline?.text) || undefined, email: b.email, phone: b.phone, url: b.url, summary: a.summary?.text, location: b.location, profiles: b.profiles },
     work: ents('work').map(e => entry(e, { name: e.org, position: e.title, location: e.place })),
     education: ents('education').map(e => ({ institution: e.org, studyType: e.title, startDate: e.start || undefined, endDate: e.end || undefined })),
-    projects: ents('project').map(e => entry(e, { name: e.title, entity: e.org })),
+    volunteer: d.entries.filter(e => store(e.kind) === 'volunteer').map(e => entry(e, { organization: e.org, position: e.title })),
+    projects: [...d.entries.filter(e => e.kind === 'project' || store(e.kind) === 'projects').map(e => entry(e, { name: e.title, entity: e.org, ...(K.kindOf(m, e.kind) ? { type: e.kind } : {}) })),
+      ...kinds('projects', 'list').flatMap(k => items(k).map(x => ({ name: x.title, entity: x.sub, startDate: x.right, type: k })))],
+    awards: kinds('awards').flatMap(items).map(x => ({ title: x.title, awarder: x.sub, date: x.right })),
     skills: sk.map(g => ({ name: g.name, keywords: g.words.map(w => w.text) })),
     languages: items('languages').map(x => ({ language: x.title, fluency: x.right })),
     certificates: items('certificates').map(x => ({ name: x.title, issuer: x.sub })),
     publications: items('publications').map(x => ({ name: x.title, publisher: x.sub })),
     interests: items('interests').map(x => ({ name: x.title })),
+    references: (m.references ?? []).map(r => ({ name: r.name, reference: wordIn(r.id, lang).text || r.reference })),
     meta: { language: lang } };
 }
 function asText(m, lang){
@@ -681,15 +747,22 @@ function html(q){
   return `<div class="ce-doc">${about(d, lang, q)}<div class="ce-bh" id="ce-timeline">${h('cv.timeline')}</div>${timeline(d, lang, q)}<div class="ce-bh" id="ce-skills">${h('cv.skillsCreds')}</div><div class="ce-boxes">${lists(d, lang, q)}</div></div>`;
 }
 // after a draw: the focus asked for, and the top fade's place under the toolbar
+// after a draw: Career keeps its scroll as it was (opening or closing a card or a section never moves it); only an add, a kind or a jump from
+// the sidebar scrolls, to bring what it opened into view; then the focus asked for, and the fades
 function after(){
   const sc = pane(); if (!sc) return;
   if (S.focus){
     const f = sc.querySelector(S.focus); S.focus = null;
-    if (f){ f.focus({ preventScroll: true }); if (f.tagName === 'TEXTAREA') f.setSelectionRange(f.value.length, f.value.length); else f.select?.(); if (!inView(f)) f.scrollIntoView({ block: 'center' }); }
+    if (f){
+      f.focus({ preventScroll: true });
+      if (f.tagName === 'TEXTAREA') f.setSelectionRange(f.value.length, f.value.length); else f.select?.();
+      if (S.reveal) (f.closest('.ce-box, .ce-addcard, .ce-card, .ce-about') ?? f).scrollIntoView({ block: 'start' });
+    }
   }
+  S.reveal = false;
   marks2(); dim();
 }
-const inView = el => { const r = el.getBoundingClientRect(); return r.top >= 60 && r.bottom <= innerHeight - 20; };
+
 // Its picks: an entry none of whose facts the open resume prints (its page, as drawn) is dimmed in place; the page may be drawn after Career
 function dim(){
   const on = lensOn(), shown = on ? C.printed() : null, w = on ? C.work() : null;
@@ -704,7 +777,7 @@ function marks2(){
   const bar = sc.querySelector('.ce-bar');
   sc.classList.toggle('ce-top', sc.scrollTop > 0);
   sc.classList.toggle('ce-more', sc.scrollTop + sc.clientHeight < sc.scrollHeight - 2);
-  if (bar){ const r = bar.getBoundingClientRect(); sc.style.setProperty('--ce-bx', `${r.left}px`); sc.style.setProperty('--ce-bw', `${r.width}px`); sc.style.setProperty('--ce-bt', `${r.top}px`); sc.style.setProperty('--ce-bh', `${r.height}px`); sc.style.setProperty('--ce-bb', `${r.bottom}px`); }
+  if (bar){ const r = bar.getBoundingClientRect(); sc.style.setProperty('--ce-bx', `${r.left}px`); sc.style.setProperty('--ce-bw', `${r.width}px`); sc.style.setProperty('--ce-bt', `${r.top}px`); sc.style.setProperty('--ce-br', getComputedStyle(bar).borderTopLeftRadius); sc.style.setProperty('--ce-bh', `${r.height}px`); sc.style.setProperty('--ce-bb', `${r.bottom}px`); }
 }
 const dirtyFields = () => [...(pane()?.querySelectorAll('.ce-doc .ce-ed') ?? [])].filter(f => f.value !== f.defaultValue);
 const dirty = () => dirtyFields().length > 0 || [...S.drafts.values()].some(v => String(v).trim());
@@ -777,21 +850,39 @@ async function act(a, tg){
     case 'cv-pwrite': S.skWrite = d.id; S.skAdd = null; S.focus = '[data-ce-pwin]'; draw(); return true;
     case 'cv-iwrite': { const keep = S.secEdit; solo(null); S.secEdit = keep; S.ctx = keep ? { sec: keep } : null; S.iwrite = d.id; S.focus = '[data-ce-iwin]'; draw(); return true; }
     case 'cv-iadd': S.iadd = true; S.focus = '[data-ce-iain]'; draw(); return true;
+    case 'cv-kind-new': closePop(); solo(null); S.kind = { id: null, draft: newKind(d.p ?? null), del: false }; S.focus = '#ce-kindcard [data-ce-k=name]'; S.reveal = true; draw(); return true;
+    case 'cv-kind-edit': { closePop(); solo(null); const k = K.kindOf(rec(), d.id); if (!k) return true; S.kind = { id: d.id, draft: structuredClone(k), del: false }; S.focus = '#ce-kindcard [data-ce-k=name]'; S.reveal = true; draw(); return true; }
+    case 'cv-kpreset': readKind(); S.kind.draft = applyPreset(S.kind.draft, d.p); draw(); return true;
+    case 'cv-kcolour': readKind(); S.kind.draft.colour = Number(d.i); if (S.kind.id) saveKindNow(); draw(); return true;
+    case 'cv-kicon': readKind(); S.kind.draft.icon = d.i; if (S.kind.id) saveKindNow(); draw(); return true;
+    case 'cv-kcreate': createKind(); return true;
+    case 'cv-kcancel': case 'cv-kdone': S.kind = null; draw(); return true;
+    case 'cv-kdel': S.kind.del = true; draw(); return true;
+    case 'cv-kdelno': S.kind.del = false; draw(); return true;
+    case 'cv-kdelmove': case 'cv-kdelall': {
+      const id = S.kind.id, to = a === 'cv-kdelmove' ? document.querySelector('#ce-kindcard [data-ce-k=move]')?.value ?? null : null;
+      let res;
+      if (commit(x => { res = K.deleteKind(x.record, id, { moveTo: to, recipes: recipesOf(x) }); }, t('undo.deleteKind')) && res){ C.toast(to ? t('career.kindMoved', { n: res.moved }) : t('career.kindDeleted', { n: res.deleted }), '', true); S.kind = null; }
+      draw(); return true;
+    }
+    case 'cv-profadd': commit(x => { (x.record.basics ??= {}).profiles = [...(x.record.basics.profiles ?? []), { network: '', username: '', url: '' }]; }, t('cv.undoProfile')); S.focus = '.ce-prof:last-of-type input'; draw(); return true;
+    case 'cv-profdel': commit(x => { x.record.basics.profiles = (x.record.basics.profiles ?? []).filter((_, i) => i !== Number(d.i)); }, t('cv.undoProfile')); draw(); return true;
     case 'cv-addsave': saveAdd(); return true;
     case 'cv-addcancel': S.adding = null; draw(); return true;
     case 'cv-inlsave': saveInl(); return true;
     case 'cv-inlcancel': S.inl = null; draw(); return true;
     case 'cv-ctxoff': solo(null); draw(); return true;
-    case 'cv-ctxlang': { const g = d.g; solo(g); S.focus = `[data-ce-card="${CSS.escape(g)}"] .ce-ch`; if (d.l !== L()) setLang(d.l); else draw(); return true; }
+    case 'cv-ctxlang': { const g = d.g; solo(g); S.focus = `[data-ce-card="${CSS.escape(g)}"] .ce-ch`; S.reveal = true; if (d.l !== L()) setLang(d.l); else draw(); return true; }
     case 'cv-ctxwrite': {
       const id = d.f, k = d.k;
       solo(k ? null : groupOfFact(id));
+      S.reveal = true;
       if (k){ S.ctx = { sec: k }; if (k === 'interests') S.iwrite = id; else { S.secEdit = k; S.focus = `[data-ce-er="${CSS.escape(id)}"] .ce-fi`; } }
       else { S.fan.set(id, 'write'); S.ctx = { ...(S.ctx ?? {}), line: id }; S.focus = '#ce-ta'; }
       if (d.l !== L()) setLang(d.l); else draw(); return true;
     }
-    case 'cv-skl': solo(null); S.secEdit = 'skills'; S.ctx = { sec: 'skills' }; S.focus = '#ce-skills'; if (d.l !== L()) setLang(d.l); else draw(); return true;
-    case 'cv-goto': { const id = d.f; if (!id) return true; solo(groupOfFact(id)); S.fan.set(id, 'write'); S.ctx = { ...(S.ctx ?? {}), line: id }; S.focus = '#ce-ta'; draw(); return true; }
+    case 'cv-skl': solo(null); S.secEdit = 'skills'; S.ctx = { sec: 'skills' }; S.focus = '#ce-skills'; S.reveal = true; if (d.l !== L()) setLang(d.l); else draw(); return true;
+    case 'cv-goto': { const id = d.f; if (!id) return true; solo(groupOfFact(id)); S.reveal = true; S.fan.set(id, 'write'); S.ctx = { ...(S.ctx ?? {}), line: id }; S.focus = '#ce-ta'; draw(); return true; }
     case 'cv-ropen': return C.openAt(d.rid, JSON.parse(d.sel));
   }
   return false;
@@ -811,6 +902,7 @@ export function initCareerView(ctx){
       if (tg.matches?.('[data-ce-wain], [data-ce-iain], [data-ce-iwin], [data-ce-pwin]')){ e.preventDefault(); e.stopImmediatePropagation(); Object.assign(S, { skAdd: null, iadd: false, iwrite: null, skWrite: null }); draw(); return; }
       if (tg.closest?.('.ce-inl')){ e.preventDefault(); e.stopImmediatePropagation(); S.inl = null; draw(); return; }
       if (tg.closest?.('#ce-addcard')){ e.preventDefault(); e.stopImmediatePropagation(); S.adding = null; draw(); return; }
+      if (tg.closest?.('#ce-kindcard') && !S.kind?.id){ e.preventDefault(); e.stopImmediatePropagation(); S.kind = null; draw(); return; }
       if (tg.closest?.('[data-form]') && !dot) return;      // a form field's own Esc puts it back (career.js)
       if (escape()){ e.preventDefault(); e.stopImmediatePropagation(); }
       return;
@@ -822,9 +914,12 @@ export function initCareerView(ctx){
     if (tg.matches?.('[data-ce-iwin], [data-ce-pwin], .ce-se input[data-ce-fi], .ce-se input[data-ce-gname]')){ e.preventDefault(); tg.blur(); return; }
     if (tg.matches?.('.ce-inl [data-ce-inlin]') && !(tg.tagName === 'TEXTAREA' && e.shiftKey)){ e.preventDefault(); saveInl(); return; }
     if (tg.closest?.('#ce-addcard') && tg.tagName === 'INPUT'){ e.preventDefault(); saveAdd(); }
+    if (tg.closest?.('#ce-kindcard') && tg.matches('[data-ce-k]')){ e.preventDefault(); if (S.kind?.id) tg.blur(); else createKind(); }
   }, true);
   document.addEventListener('mouseup', e => { if (e.button === 3 && inCareer() && escape(true)) e.preventDefault(); }, true);
-  document.addEventListener('click', e => { if (inCareer() && (e.target.id === 'scr' || e.target.classList?.contains('ce-doc') || e.target.classList?.contains('ce-boxes'))) escape(true); }, true);
+  // the bare ground: around the column, between the cards, the timeline's own gaps; never a card, a field or a control
+  const bare = n => n.id === 'scr' || (!!n.closest?.('#scr .ce-doc') && !n.closest('.ce-card, .ce-box, .ce-about, .ce-addcard, .ce-inl, button, a, input, select, textarea, label, [data-act]'));
+  document.addEventListener('click', e => { if (inCareer() && bare(e.target)) escape(true); }, true);
   document.addEventListener('pointerdown', e => { if (pop && !pop.el.contains(e.target) && !pop.anchor.contains(e.target)) closePop(); }, true);
   document.addEventListener('scroll', e => { if (e.target.id === 'scr' && inCareer()){ closePop(); marks2(); } }, { capture: true, passive: true });
   addEventListener('resize', () => { if (inCareer()) marks2(); }, { passive: true });
@@ -835,6 +930,9 @@ export function initCareerView(ctx){
     if (tg.matches('[data-ce-iwin]')){ const id = tg.dataset.ceIwin; if (S.iwrite !== id) return; S.iwrite = null; const v = tg.value.trim(), lang = L(); if (v) commit(d => { if (lang === 'en') K.updateInterest(d.record, id, { name: v }, 'en'); else setWording(d, id, lang, v); }, t('cv.undoWriteIn', { lang: lname(lang) })); draw(); return; }
     if (tg.matches('[data-ce-gname]')){ commit(d => { K.updateSkill(d.record, tg.dataset.ceGname, { name: tg.value }, L()); }, t('undo.editItem')); draw(); return; }
     if (tg.matches('[data-ce-pwin]')) writeWord(tg.dataset.cePwin, tg.dataset.k, tg.value);
+    if (tg.matches('[data-ce-pk]')){ const i = Number(tg.closest('[data-ce-prof]').dataset.ceProf); commit(x => { const ps = [...(x.record.basics.profiles ?? [])]; ps[i] = { ...ps[i], [tg.dataset.cePk]: tg.value.trim() }; x.record.basics.profiles = ps; }, t('cv.undoProfile')); draw(); return; }
+    if (tg.matches('#ce-kindcard [data-ce-k=name], #ce-kindcard [data-ce-k=org]')){ readKind(); if (S.kind?.id) saveKindNow(); return; }
+    if (tg.matches('#ce-kindcard [name=ce-kplace]') && S.kind){ readKind(); S.kind.draft.place = tg.value; draw(); }
   });
   // native drag and drop: a row by its grip within its list, a skill word between and within groups
   document.addEventListener('dragstart', e => {

@@ -43,7 +43,6 @@ function afterRender(){
   if (phone()){ C.checklist.afterRender(); return goTo(); }
   place();
   C.checklist.afterRender();      // once the entry is in the inspector: a tick's pop and the line's travel find it there
-  C.view.after();
 }
 function place(){
   const cl = document.getElementById('checklist'), bd = document.getElementById('body');
@@ -70,8 +69,10 @@ function place(){
   const q = F.q.trim().toLowerCase();
   if (q) for (const row of sel.querySelectorAll('.clrow')) row.classList.toggle('qhit', row.textContent.toLowerCase().includes(q) || found.some(x => x.fact === row.dataset.fact));
 }
-// the search keeps the caret over a redraw (the shell calls this after it has put the focus back)
+// after the shell has put the scroll and the focus back: Career's own (the card clicked stays put, an add is brought into view), then the
+// search keeps its caret over a redraw
 function refocus(){
+  if (!phone()) C.view.after();
   if (!R.typing) return;
   R.typing = false;
   const i = document.getElementById('rec-q'); if (!i) return;

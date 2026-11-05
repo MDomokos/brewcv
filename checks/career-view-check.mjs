@@ -8,6 +8,11 @@
 //     mouse's back button keep an unsaved edit, and close what is open when nothing is typed,
 //   - a skill word moved to another group keeps the scroll where it was,
 //   - in a narrow card the hover "+ Add" and "On this resume" both show, side by side,
+//   - + Add brings what it opens into view, focused; the menu has no "line" (a line is added from its job);
+//   - a click on the bare ground (around the column, between the cards) closes what is open, an unsaved edit excepted;
+//   - a card or a section opening or closing in place leaves the mat exactly still; the wheel still scrolls the content and the mat;
+//   - "Something else" is Career's own kind editor: a preset, Create, its first entry in Career; a kind's settings, colour and delete there too;
+//   - scrolled, the top fade runs from the toolbar's top edge, through its corners, to just under its foot;
 //   - under 860px the timeline is one column.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing.
 
@@ -116,7 +121,7 @@ async function pixels(ctx, png){
   await page.keyboard.press('Escape'); await settle(page);
   ok('the next Esc closes what is open, in Career', (await editors(page)) === 0 && await page.evaluate(() => !document.querySelector('#scr .ce-card.is-open') && window.__wb.ui.view === 'record'));
   await page.click('#ce-add'); await settle(page);
-  ok('+ Add opens one grouped menu', await page.evaluate(() => document.querySelectorAll('#ce-pop [data-act=cv-add]').length >= 10 && document.querySelectorAll('#ce-pop .ce-mg').length >= 2));
+  ok('+ Add opens one grouped menu', await page.evaluate(() => document.querySelectorAll('#ce-pop [data-act=cv-add]').length >= 9 && document.querySelectorAll('#ce-pop .ce-mg').length >= 2));
   await page.click('#scr .ce-card[data-ce-card=hydra] .ce-ch', { force: true }).catch(() => {}); await settle(page);
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc closes a menu first', !(await page.$('#ce-pop')));
@@ -137,6 +142,75 @@ async function pixels(ctx, png){
   ok('a skill word dragged to another group moves there, the editor stays open, and the scroll stays where it was', after.there && after.editing && Math.abs(after.top - top0) < 1, JSON.stringify({ top0, ...after }));
   ok('one undo step undoes the move', (await undo()) === u0 + 1);
   await page.keyboard.press('Escape'); await settle(page);
+
+  // + Add brings what it opens into view; nothing else scrolls
+  const sc = () => page.evaluate(() => document.getElementById('scr').scrollTop);
+  await page.evaluate(() => document.getElementById('scr').scrollTo(0, 0)); await settle(page);
+  await page.click('#ce-add'); await settle(page);
+  ok('+ Add has no “line”: a line is added from its own job', await page.evaluate(() => !document.querySelector('#ce-pop [data-what=line]') && !!document.querySelector('#ce-pop [data-what=work]')));
+  await page.click('#ce-pop [data-act=cv-add][data-what=languages]'); await settle(page);
+  const shown = await page.evaluate(() => { const b = document.querySelector('#scr .ce-box[data-ce-sec=languages]'), r = b.getBoundingClientRect(), f = document.activeElement; return { top: Math.round(r.top), bottom: Math.round(r.bottom), focus: !!f?.closest('.ce-box[data-ce-sec=languages] .ce-inl'), scrolled: document.getElementById('scr').scrollTop }; });
+  ok('+ Add, a language: Career scrolls the Languages card into view, its row open and focused, clear of the toolbar', shown.focus && shown.scrolled > 0 && shown.top >= 60 && shown.bottom <= 860, JSON.stringify(shown));
+  await page.keyboard.press('Escape'); await settle(page);
+  // a click on the bare ground closes what is open
+  await page.evaluate(() => document.getElementById('scr').scrollTo(0, 0)); await settle(page);
+  await page.click('#scr .ce-card[data-ce-card=hydra] .ce-ch'); await settle(page);
+  await page.mouse.click(8, 600); await settle(page);      // left of the column, on the mat
+  ok('a click on the mat beside the column closes the open card', await page.evaluate(() => !document.querySelector('#scr .ce-card.is-open')));
+  await page.click('#scr .ce-card[data-ce-card=hydra] .ce-ch'); await settle(page);
+  const gap = await page.evaluate(() => { const l = document.querySelector('#scr .ce-yrow .ce-lane:last-child'), r = l.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + 10)]; });
+  await page.mouse.click(...gap); await settle(page);
+  ok('…and a click between the cards (an empty lane) does too', await page.evaluate(() => !document.querySelector('#scr .ce-card.is-open')));
+  await page.hover('#scr .ce-box[data-ce-sec=certificates] h3'); await page.click('#scr .ce-box[data-ce-sec=certificates] [data-act=cv-secedit]'); await settle(page);
+  const u2 = await undo();
+  await page.fill('#scr .ce-box[data-ce-sec=certificates] [data-ce-fi=issuer] >> nth=0', 'Example Board');
+  await page.mouse.click(8, 600); await settle(page);
+  ok('a section\u2019s field left by a click on the mat is saved, as leaving a field always is, and the section closes', (await undo()) === u2 + 1 && await page.evaluate(() => window.__wb.store.state.record.certificates.some(c => c.issuer === 'Example Board') && !document.querySelector('#scr .ce-box.is-editing')));
+  await page.keyboard.press('Control+z'); await settle(page);
+  // a card or a section opening in place leaves the mat exactly as it was: no layer is sized to, or drawn from the foot of, the content
+  const matAt = () => page.screenshot({ clip: { x: 2, y: 300, width: 12, height: 200 } }).then(b => b.toString('base64'));      // the gutter left of the column: mat only
+  const still = async (what, click) => {
+    const t0 = await sc(), m0 = await matAt(); await click(); const mid = await matAt(); await settle(page); const m1 = await matAt(), t1 = await sc();
+    ok(`${what}: the mat stays exactly where it was, during and after, at the same scroll`, t1 === t0 && mid === m0 && m1 === m0, JSON.stringify({ t0, t1, during: mid === m0, after: m1 === m0 }));
+  };
+  await page.evaluate(() => document.getElementById('scr').scrollTo(0, 200)); await settle(page);
+  await still('a card opening in place', () => page.click('#scr .ce-card[data-ce-card=hydra] .ce-ch'));
+  await still('and closing', () => page.click('#scr .ce-card[data-ce-card=hydra] .ce-ch'));
+  await page.evaluate(() => { const s = document.getElementById('scr'), b = document.querySelector('#scr .ce-box[data-ce-sec=publications]'); s.scrollTop += b.getBoundingClientRect().top - 300; }); await settle(page);
+  await page.hover('#scr .ce-box[data-ce-sec=publications] h3');
+  await still('a section\u2019s fields opening', () => page.click('#scr .ce-box[data-ce-sec=publications] [data-act=cv-secedit]'));
+  const w0 = await sc(), mw = await matAt(); await page.mouse.move(400, 500); await page.mouse.wheel(0, -240); await settle(page);
+  ok('…and the wheel still scrolls Career afterwards, the mat with it', (await sc()) < w0 && (await matAt()) !== mw);
+  await page.keyboard.press('Escape'); await settle(page);
+
+  // scrolled, nothing shows beside the toolbar's rounded corners: the fade takes the whole width at its height, its corners included
+  await page.evaluate(() => { const s = document.getElementById('scr'), c = document.querySelector('#scr .ce-card[data-ce-card=hydra]'), bar = document.querySelector('#scr .ce-bar'); s.scrollTop += c.getBoundingClientRect().top - bar.getBoundingClientRect().top + 10; }); await settle(page);      // the card's top just above the toolbar
+  const corner = await page.evaluate(() => { const r = document.querySelector('#scr .ce-bar').getBoundingClientRect(); return { x: Math.floor(r.right) - 3, y: Math.ceil(r.top) + 1, top: Math.floor(r.top) - 3, below: Math.ceil(r.bottom) + 2, r: parseFloat(getComputedStyle(document.querySelector('#scr .ce-bar')).borderTopRightRadius) }; });
+  const spot = y => page.screenshot({ clip: { x: corner.x, y, width: 2, height: 2 } }).then(b => b.toString('base64'));
+  const withContent = [await spot(corner.top), await spot(corner.y), await spot(corner.below)];
+  await page.addStyleTag({ content: '#scr .ce-doc { visibility: hidden !important; }' }); await settle(page);
+  const without = [await spot(corner.top), await spot(corner.y), await spot(corner.below)];
+  await page.evaluate(() => document.querySelector('style:last-of-type').remove()); await settle(page);
+  ok('scrolled, the fade runs from the toolbar\u2019s top edge (nothing above it) through its corners to just under its foot (content faint there, not gone)', corner.r > 4 && withContent[0] === without[0] && withContent[2] !== without[2], JSON.stringify({ ...corner, same: withContent.map((x, i) => x === without[i]) }));
+
+  // your own kind, in Career: a preset, Create, its first entry; its settings and delete
+  const u1 = await undo();
+  await page.click('#ce-add'); await settle(page); await page.click('#ce-pop [data-act=cv-kind-new]:not([data-p])'); await settle(page);
+  ok('“Something else” opens Career\u2019s own kind editor, in view, the name focused; the editor never opens', await page.evaluate(() => window.__wb.ui.view === 'record' && !!document.querySelector('#scr #ce-kindcard') && document.activeElement?.dataset.ceK === 'name'));
+  await page.click('#ce-kindcard [data-act=cv-kpreset][data-p=awards]'); await settle(page);
+  ok('a preset fills it: Awards is a list, its organisation “Awarded by”', await page.evaluate(() => document.querySelector('#ce-kindcard [data-ce-k=name]').value === 'Awards' && document.querySelector('#ce-kindcard [name=ce-kplace][value=list]').checked));
+  await page.click('#ce-kindcard [data-act=cv-kcreate]'); await settle(page);
+  const kd = await page.evaluate(() => { const k = window.__wb.store.state.record.kinds?.find(x => x.store === 'awards'); return { k: k?.id, add: !!document.querySelector('#scr .ce-box #ce-addcard'), view: window.__wb.ui.view, focus: !!document.activeElement?.closest('#ce-addcard') }; });
+  ok('Create makes the kind (one undo step) and opens its first entry\u2019s card in Career', !!kd.k && kd.add && kd.view === 'record' && kd.focus && (await undo()) === u1 + 1, JSON.stringify(kd));
+  await page.fill('#ce-addcard [data-ce-f=pos]', 'Best student design'); await page.click('#ce-addcard [data-act=cv-addsave]'); await settle(page);
+  ok('…and its first entry is saved there', await page.evaluate(() => window.__wb.store.state.record.awards?.[0]?.title === 'Best student design' && /Best student design/.test(document.querySelector('#scr .ce-doc').textContent)));
+  await page.hover(`#scr .ce-box[data-ce-sec="${kd.k}"] h3`); await page.click(`#scr .ce-box[data-ce-sec="${kd.k}"] [data-act=cv-kind-edit]`); await settle(page);
+  await page.click('#ce-kindcard [data-act=cv-kcolour][data-i="4"]'); await settle(page);
+  ok('a kind\u2019s settings open in Career too, and its colour changes at once', await page.evaluate(k => window.__wb.store.state.record.kinds.find(x => x.id === k)?.colour === 4 && !!document.querySelector('#ce-kindcard'), kd.k));
+  await page.click('#ce-kindcard [data-act=cv-kdel]'); await settle(page); await page.click('#ce-kindcard [data-act=cv-kdelall]'); await settle(page);
+  ok('deleting it asks first, then takes its entries with it', await page.evaluate(() => !window.__wb.store.state.record.kinds?.some(x => x.store === 'awards') && !document.querySelector('#ce-kindcard')));
+  await page.keyboard.press('Control+z'); await settle(page);
+  ok('one Ctrl+Z brings it back, with its entry', await page.evaluate(() => window.__wb.store.state.record.kinds?.some(x => x.store === 'awards') && window.__wb.store.state.record.awards?.[0]?.title === 'Best student design'));
 
   // a narrow card under the open resume's picks: the hover "+ Add" and "On this resume" both show
   await page.evaluate(() => document.querySelector('#scr .ce-box[data-ce-sec=languages]').scrollIntoView({ block: 'center' }));

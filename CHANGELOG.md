@@ -9,6 +9,12 @@
 - **The mat scrolls with Career** exactly, behind the sidebar too, and the top and foot of the scroll fade.
 - **Esc, Cmd+. and the mouse's back button close Career's menus, then what is open;** only Esc drops an unsaved edit.
 - **Selections are marked with a ring or a tint,** never a coloured bar on a box's left edge.
+- **Your own kinds are made and changed in Career,** from a preset or from scratch; + Add offers Volunteering and Awards while you have none.
+- **About you takes your profiles and a country code,** so Career holds every part of a JSON Resume.
+
+### Fixed
+- **A place tab's name shows whole or not at all** while the tabs change, never cut short.
+- **The mat stays still when a card opens in Career,** and the top fade covers the toolbar's corners.
 
 ## 1.9.3 - 2026-11-04
 

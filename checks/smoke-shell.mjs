@@ -1562,7 +1562,7 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
     if (await p3.isVisible('[data-act=ob-finish]')) await p3.click('[data-act=ob-finish]'); await settle(p3);
     ok('Start editing brings the rest in: the header with Edit, Design and Export, and the Outline', await p3.isVisible('#head') && await p3.isVisible('#tab-edit') && /Saved on this device/.test(await p3.textContent('#body')));
     await openAdd(p3); await settle(p3);
-    ok('+ Add lists every kind: job, education, project, skills, languages, certificates, publications, interests, references, and “Something else”', (await p3.evaluate(() => ['work', 'education', 'project', 'skills', 'languages', 'certificates', 'publications', 'interests', 'references'].every(k => !!document.querySelector(`#ce-pop .addm [data-act=cv-add][data-what=${k}]`)) && !!document.querySelector('#ce-pop [data-act=c-kind-new]'))));
+    ok('+ Add lists every kind: job, education, project, skills, languages, certificates, publications, interests, references, and “Something else”', (await p3.evaluate(() => ['work', 'education', 'project', 'skills', 'languages', 'certificates', 'publications', 'interests', 'references'].every(k => !!document.querySelector(`#ce-pop .addm [data-act=cv-add][data-what=${k}]`)) && !!document.querySelector('#ce-pop [data-act=cv-kind-new]'))));
     await p3.click('.addm [data-what=work]'); await settle(p3);
     ok('+ Add a job opens its card in Career: title, employer, dates and a first line', await p3.isVisible('#ce-addcard [data-ce-f=line]') && await p3.isVisible('#ce-f-start-b') && /New job|A new job/.test(await p3.textContent('#ce-addcard')));
     await p3.click('#ce-addcard [data-act=cv-addcancel]'); await settle(p3);
@@ -1610,13 +1610,13 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
 
   // a custom kind: Awards, from the preset
   await openAdd(page); await settle(page);
-  await page.click('.addm [data-act=c-kind-new]'); await settle(page);
-  await page.click('[data-act=c-kind-preset][data-p=awards]'); await settle(page);
-  await page.click('[data-act=c-kind-save]'); await settle(page);
-  ok('Awards, made from the preset, is a list kind', (await st()).record.kinds?.[0]?.store === 'awards' && (await st()).record.kinds[0].place === 'list');
-  ok('and the form for its first entry opens', await page.isVisible('#c-pos'));
-  await page.fill('#c-pos', 'Best student design'); await page.fill('#c-org', 'Example Society'); await pickMonth(page, 'c-start', '2020-11');
-  await page.click('[data-act=c-create]'); await settle(page);
+  await page.click('.addm [data-act=cv-kind-new]:not([data-p])'); await settle(page);
+  await page.click('#ce-kindcard [data-act=cv-kpreset][data-p=awards]'); await settle(page);
+  await page.click('#ce-kindcard [data-act=cv-kcreate]'); await settle(page);
+  ok('Awards, made from the preset in Career, is a list kind', (await st()).record.kinds?.[0]?.store === 'awards' && (await st()).record.kinds[0].place === 'list' && (await page.evaluate(() => window.__wb.ui.view)) === 'record');
+  ok('and the card for its first entry opens in Career', await page.isVisible('#ce-addcard [data-ce-f=pos]'));
+  await page.fill('#ce-addcard [data-ce-f=pos]', 'Best student design'); await page.fill('#ce-addcard [data-ce-f=org]', 'Example Society'); await pickMonth(page, 'ce-f-start', '2020-11');
+  await page.click('#ce-addcard [data-act=cv-addsave]'); await settle(page);
   ok('the entry is a JSON Resume award', (await st()).record.awards?.[0]?.title === 'Best student design');
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
   await inRecord(page, 'awards');
@@ -1625,17 +1625,17 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
   await page.click('#seclist .srow[data-sid=awards] .swl'); await settle(page);
   ok('put on a resume, it prints as a run line', (await frameDoc(page, d => d.body.textContent)).includes('Best student design · Example Society · 2020'));
   // another list kind, then delete Awards moving its entry there
-  await openAdd(page); await settle(page); await page.click('.addm [data-act=c-kind-new]'); await settle(page);
-  await page.fill('#kn-name', 'Exhibitions'); await page.check('[data-kplace=list]'); await settle(page);
-  await page.click('[data-act=c-kind-save]'); await settle(page);
-  await page.click('[data-act=c-add-cancel]').catch(() => {}); await settle(page);
+  await openAdd(page); await settle(page); await page.click('.addm [data-act=cv-kind-new]:not([data-p])'); await settle(page);
+  await page.fill('#ce-kindcard [data-ce-k=name]', 'Exhibitions'); await page.check('#ce-kindcard [name=ce-kplace][value=list]'); await settle(page);
+  await page.click('#ce-kindcard [data-act=cv-kcreate]'); await settle(page);
+  await page.click('#ce-addcard [data-act=cv-addcancel]').catch(() => {}); await settle(page);
   await openAdd(page); await settle(page);
   await page.click('.addm .kset[data-id="awards"]'); await settle(page);
-  ok('an existing kind’s editor has no Save button: its colour and icon change at once', !(await page.$('[data-act=c-kind-save]')) && await page.isVisible('[data-act=c-kind-colour]'));
-  await page.click('[data-act=c-kind-colour][data-i="1"]'); await settle(page);
+  ok('an existing kind’s editor has no Create button: its colour and icon change at once', !(await page.$('#ce-kindcard [data-act=cv-kcreate]')) && await page.isVisible('#ce-kindcard [data-act=cv-kcolour]'));
+  await page.click('#ce-kindcard [data-act=cv-kcolour][data-i="1"]'); await settle(page);
   ok('…', (await st()).record.kinds.find(k => k.store === 'awards').colour === 1);
-  await page.click('[data-act=c-kind-del]'); await settle(page);
-  await page.click('[data-act=c-kind-del-move]'); await settle(page);
+  await page.click('#ce-kindcard [data-act=cv-kdel]'); await settle(page);
+  await page.click('#ce-kindcard [data-act=cv-kdelmove]'); await settle(page);
   s = await st();
   ok('deleting Awards moved its entry to Exhibitions', !s.record.kinds.some(k => k.store === 'awards') && s.record.projects?.some(p => p.name === 'Best student design' && p.type === 'exhibitions'), JSON.stringify(s.record.projects));
   await page.keyboard.press('Control+z'); await settle(page);

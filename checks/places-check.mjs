@@ -13,6 +13,7 @@
 //   - the bar (the brand, Saved, undo, redo, the "?" and the fold) is in the same spot on all three places, within 1px; the brand goes home to
 //     Resumes; the "?" is the one menu (the drink and the theme, help and settings, the files); Content and Look from the Library open the
 //     resume the card names, and rest while several are ticked; folded, the way and the bar are two strips of one width at the window's edge,
+//   - switching places, a tab's word is shown whole or not at all, never cut (sampled every frame);
 //   - nothing in the way moves under the pointer; in Coffee every new part has a square corner and no soft shadow,
 //   - Export is a place of its own (the way keeps Content and Look): the page large on the left, a column half again as wide on the right,
 //     ← Back and Esc return to where it was opened from as it was; several resumes show their pages in a row, a ready line each, and their
@@ -227,6 +228,23 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
     return { w: [top.width, bar.width], right: [innerWidth - top.right, innerWidth - bar.right], gap: bar.top - top.bottom, under: sh.right > top.left, top: [...document.querySelectorAll('#ptabs .wtab, #ptabs .wexport')].filter(e => e.checkVisibility()).map(e => e.dataset.p ?? e.dataset.m ?? 'export').join(), bar: [...document.querySelectorAll('#rail .savestate, #rail .ib, #rail .brand')].filter(e => e.checkVisibility()).map(e => (e.dataset.act ?? 'saved').replace('place', 'brand')).join(), card: getComputedStyle(document.querySelector('#head')).display }; });
   ok('folded: the way and the bar are two strips, 54px wide, at the window’s edge; the top one holds the places, Content, Look and Export, the bottom one Saved, undo, redo, the "?", the fold and the brand; the name card goes and the page is not under them', fold.w.every(x => Math.abs(x - 54) < 1) && Math.abs(fold.right[0] - fold.right[1]) < 1 && fold.gap > 0 && !fold.under && fold.top === 'career,library,edit,design,export' && ['saved', 'undo', 'redo', 'menu', 'side-fold', 'brand'].every(k => fold.bar.split(',').includes(k)) && fold.card === 'none', JSON.stringify(fold));
   await page.keyboard.press('Control+Backslash'); await settle(page);
+  await ctx.close();
+}
+
+// ---------------------------------------------------------------- a tab's word is whole or hidden while the tabs change, never cut
+{
+  const { ctx, page } = await open(1470, 832, { motion: true });
+  const watch = () => page.evaluate(() => new Promise(r => {
+    const bad = [], t0 = performance.now();
+    const f = () => {
+      for (const w of document.querySelectorAll('#ptabs .wtab .ww')){ const o = +getComputedStyle(w).opacity; if (o > 0.01 && w.scrollWidth > w.clientWidth) bad.push(`${w.textContent.trim()} ${w.scrollWidth}>${w.clientWidth} at ${Math.round(performance.now() - t0)}ms, opacity ${o.toFixed(2)}`); }
+      if (performance.now() - t0 < 1000) requestAnimationFrame(f); else r(bad);
+    };
+    requestAnimationFrame(f);
+  }));
+  const bad = [];
+  for (const sel of ['#ptabs [data-p=career]', '#ptabs [data-p=library]', '#ptabs [data-p=career]', '#tab-edit']){ const w = watch(); await page.click(sel); bad.push(...await w); }
+  ok('switching places, a tab\u2019s word is never shown cut: while it is visible it has its whole width (sampled every frame)', !bad.length, bad.slice(0, 4).join(' | '));
   await ctx.close();
 }
 

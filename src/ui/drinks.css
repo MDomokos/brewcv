@@ -35,6 +35,9 @@ html[data-drink="coffee"] body, html[data-drink="coffee"] body.has-scr:not([data
    gutter, and what sticks stops at the padding's edge. While the drinks roll, the list lets the roll show through.
    shortcut: the list's mat covers the garden's effects in the window's margins there; let them through when the garden in the places is reworked */
 html[data-drink] body.has-scr:not([data-phone=true]) .scr { background-attachment: local; }
+/* scrolled with the list, a layer sized to the whole list, or drawn from its foot (Tea's 0deg bands start at the bottom), would stretch or
+   shift whenever the list grows: every layer is a fixed tile laid from the top-left, one period (145px) tall */
+html[data-drink="tea"] body.has-scr:not([data-phone=true]) .scr { background-size: 260px 145px, 260px 145px, 260px 145px, 260px 145px; background-position: 0 0; }
 html[data-drink] body.has-scr:has(.matroll) .scr { background: none; }
 /* the editor's mat layers (canvas.js, placed inline) would cover the list's mat in a place */
 body.has-scr:not([data-phone=true]) :is(#mat, #tbl, #mruler) { display: none !important; }
