@@ -157,7 +157,12 @@ export function initMonthPick(ctx){
     if (e.key === 'Tab' && !e.target.closest?.('#mp-menu') && !e.target.closest?.('.mpbtn')) close(false);
   }, true);
   globalThis.addEventListener?.('resize', () => close(false));
-  document.addEventListener('scroll', e => { if (open && !e.target.closest?.('#mp-menu')) close(false); }, true);
+  // a scroll (the page's own, or one that brought the field into view as it was clicked) moves the menu with its field; it closes once the field is out of sight
+  document.addEventListener('scroll', e => {
+    if (!open || e.target.closest?.('#mp-menu')) return;
+    const r = open.btn.getBoundingClientRect();
+    if (!open.btn.isConnected || r.bottom < 0 || r.top > innerHeight) close(false); else place();
+  }, true);
   return api;
 }
 const api = { close, get isOpen(){ return !!open; } };
