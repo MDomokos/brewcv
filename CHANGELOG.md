@@ -21,8 +21,7 @@
 ### Fixed
 - **A place tab's name shows whole or not at all** while the tabs change, never cut short.
 - **The mat stays still when a card opens in Career,** and the top fade covers the toolbar's corners.
-- **The month picker reads on Career's paper** in a light theme.
-- **The month picker stays open when the page scrolls,** following its field, and closes once the field is out of sight.
+- **Career's fields and month picker read clearly in light themes,** and the picker stays open while the page scrolls.
 
 ## 1.9.3 - 2026-11-04
 
